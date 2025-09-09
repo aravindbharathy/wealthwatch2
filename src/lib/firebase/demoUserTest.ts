@@ -45,7 +45,10 @@ export const testDemoUserSetup = async (): Promise<{
       dataExists,
     };
   } catch (error) {
-    console.error('❌ Demo user test failed:', error);
+    // Only log detailed errors in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Demo user test failed:', error instanceof Error ? error.message : 'Unknown error');
+    }
     return {
       success: false,
       userExists: false,

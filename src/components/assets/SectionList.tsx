@@ -14,6 +14,7 @@ interface SectionListProps {
   onDeleteAsset: (assetId: string) => void;
   onAddSection: () => void;
   loading?: boolean;
+  isAuthenticated?: boolean;
 }
 
 export default function SectionList({
@@ -27,6 +28,7 @@ export default function SectionList({
   onDeleteAsset,
   onAddSection,
   loading = false,
+  isAuthenticated = true,
 }: SectionListProps) {
   if (loading) {
     return (
@@ -58,16 +60,23 @@ export default function SectionList({
           </svg>
         </div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">No sections yet</h3>
-        <p className="text-gray-500 mb-6">Create your first section to organize your assets</p>
-        <button
-          onClick={onAddSection}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Add Section
-        </button>
+        <p className="text-gray-500 mb-6">
+          {isAuthenticated 
+            ? "Create your first section to organize your assets"
+            : "Sign in to create and organize your asset sections"
+          }
+        </p>
+        {isAuthenticated && (
+          <button
+            onClick={onAddSection}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Section
+          </button>
+        )}
       </div>
     );
   }
@@ -87,21 +96,24 @@ export default function SectionList({
           onEditAsset={onEditAsset}
           onDeleteAsset={onDeleteAsset}
           loading={loading}
+          isAuthenticated={isAuthenticated}
         />
       ))}
 
       {/* Add Section Button */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <button
-          onClick={onAddSection}
-          className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          <span>NEW SECTION</span>
-        </button>
-      </div>
+      {isAuthenticated && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <button
+            onClick={onAddSection}
+            className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span>NEW SECTION</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

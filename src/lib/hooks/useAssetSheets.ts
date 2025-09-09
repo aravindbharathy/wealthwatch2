@@ -62,6 +62,9 @@ export function useAssetSheets(userId: string) {
 
   useEffect(() => {
     if (!userId) {
+      // Clear data when no user is provided (e.g., after signout)
+      setSheets([]);
+      setError(null);
       setLoading(false);
       return;
     }
@@ -277,6 +280,8 @@ export function useAssetSummary(sheetId: string) {
 
   useEffect(() => {
     if (!sheetId) {
+      // Clear summary when no sheetId is provided (e.g., after signout)
+      setSummary(null);
       setLoading(false);
       return;
     }
@@ -317,10 +322,11 @@ export function useAssetSummary(sheetId: string) {
         }
 
         let assetsSnapshot;
-        if (sectionIds.length > 0) {
+        const validSectionIds = sectionIds.filter(id => id && id.trim() !== '');
+        if (validSectionIds.length > 0 && validSectionIds.length <= 10) { // Firestore 'in' limit is 10
           const assetsQuery = query(
             assetsRef,
-            where('sectionId', 'in', sectionIds)
+            where('sectionId', 'in', validSectionIds)
           );
           assetsSnapshot = await getDocs(assetsQuery);
         } else {

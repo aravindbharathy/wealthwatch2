@@ -11,6 +11,7 @@ interface SheetTabsProps {
   onAddSheet: () => void;
   onRenameSheet?: (sheetId: string, newName: string) => void;
   onDeleteSheet?: (sheetId: string) => void;
+  isAuthenticated?: boolean;
 }
 
 export default function SheetTabs({
@@ -20,6 +21,7 @@ export default function SheetTabs({
   onAddSheet,
   onRenameSheet,
   onDeleteSheet,
+  isAuthenticated = true,
 }: SheetTabsProps) {
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -115,17 +117,19 @@ export default function SheetTabs({
         </div>
 
         {/* Add New Sheet Button */}
-        <button
-          onClick={onAddSheet}
-          className="px-6 py-4 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-        >
-          <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>New Sheet</span>
-          </div>
-        </button>
+        {isAuthenticated && (
+          <button
+            onClick={onAddSheet}
+            className="px-6 py-4 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+          >
+            <div className="flex items-center space-x-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>New Sheet</span>
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ interface SectionItemProps {
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
   loading?: boolean;
+  isAuthenticated?: boolean;
 }
 
 export default function SectionItem({
@@ -26,6 +27,7 @@ export default function SectionItem({
   onEditAsset,
   onDeleteAsset,
   loading = false,
+  isAuthenticated = true,
 }: SectionItemProps) {
   const [showActions, setShowActions] = useState(false);
 
@@ -100,47 +102,49 @@ export default function SectionItem({
           </div>
 
           {/* Section Actions */}
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowActions(!showActions);
-              }}
-              className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-              </svg>
-            </button>
+          {isAuthenticated && (
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowActions(!showActions);
+                }}
+                className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
 
-            {/* Actions Dropdown */}
-            {showActions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                <div className="py-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditSection(section.id);
-                      setShowActions(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Edit Section
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteSection(section.id);
-                      setShowActions(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    Delete Section
-                  </button>
+              {/* Actions Dropdown */}
+              {showActions && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                  <div className="py-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditSection(section.id);
+                        setShowActions(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Edit Section
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSection(section.id);
+                        setShowActions(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Delete Section
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -154,21 +158,24 @@ export default function SectionItem({
               onEditAsset={onEditAsset}
               onDeleteAsset={onDeleteAsset}
               loading={loading}
+              isAuthenticated={isAuthenticated}
             />
           </div>
 
           {/* Add Asset Button */}
-          <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-            <button
-              onClick={() => onAddAsset(section.id)}
-              className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span>ADD ASSET</span>
-            </button>
-          </div>
+          {isAuthenticated && (
+            <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+              <button
+                onClick={() => onAddAsset(section.id)}
+                className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span>ADD ASSET</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

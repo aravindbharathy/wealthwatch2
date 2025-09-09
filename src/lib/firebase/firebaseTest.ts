@@ -22,7 +22,10 @@ export const testFirebaseConnection = async (): Promise<{
     
     return { success: true };
   } catch (error) {
-    console.error('❌ Firebase connection test failed:', error);
+    // Only log detailed errors in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase connection test failed:', error instanceof Error ? error.message : 'Unknown error');
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -51,7 +54,10 @@ export const testDemoUserCreation = async (): Promise<{
     
     return { success: true };
   } catch (error) {
-    console.error('❌ Demo user creation test failed:', error);
+    // Only log detailed errors in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Demo user creation test failed:', error instanceof Error ? error.message : 'Unknown error');
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -65,6 +71,4 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     testConnection: testFirebaseConnection,
     testDemoUserCreation: testDemoUserCreation,
   };
-  
-  console.log('💡 Try: firebaseTest.testDemoUserCreation() to test user creation');
 }

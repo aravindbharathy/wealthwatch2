@@ -41,6 +41,8 @@ const createDemoUserObject = (): User => {
     providerData: [],
     refreshToken: 'demo-refresh-token',
     tenantId: null,
+    phoneNumber: null,
+    providerId: 'demo',
     delete: async () => {},
     getIdToken: async () => 'demo-id-token',
     getIdTokenResult: async () => ({
@@ -61,6 +63,7 @@ export function AuthProviderNew({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Restore demo user session from localStorage
   useEffect(() => {
@@ -85,22 +88,26 @@ export function AuthProviderNew({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+      // Don't update state if we're in the middle of signing out
+      if (isSigningOut) {
+        return;
+      }
+      
       if (firebaseUser) {
         setUser(firebaseUser);
         setIsDemoMode(false);
         setLoading(false);
       } else {
-        // Only set user to null if we're not in demo mode
-        // This prevents overriding the demo user state
-        if (!isDemoMode) {
-          setUser(null);
-        }
+        // When Firebase user signs out, clear the user state
+        // This will trigger the UI to show signed-out state
+        setUser(null);
+        setIsDemoMode(false);
         setLoading(false);
       }
     });
 
     return () => unsubscribe();
-  }, [isDemoMode]);
+  }, [isSigningOut]);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
@@ -128,16 +135,36 @@ export function AuthProviderNew({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    if (isDemoMode) {
+    try {
+      // Set signing out flag to prevent auth state listener interference
+      setIsSigningOut(true);
+      
+      if (isDemoMode) {
+        // Clear demo user state
+        setUser(null);
+        setIsDemoMode(false);
+        localStorage.removeItem('demo-user-signed-in');
+      } else {
+        // Sign out from Firebase
+        await firebaseSignOut(auth);
+        // Clear user state immediately
+        setUser(null);
+        setIsDemoMode(false);
+      }
+      
+      // Small delay to ensure state is cleared before reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    } catch (error) {
+      console.error("Error signing out", error);
+      // Even if there's an error, try to clear state and reload
       setUser(null);
       setIsDemoMode(false);
       localStorage.removeItem('demo-user-signed-in');
-    } else {
-      try {
-        await firebaseSignOut(auth);
-      } catch (error) {
-        console.error("Error signing out", error);
-      }
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     }
   };
 

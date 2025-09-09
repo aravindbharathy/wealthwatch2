@@ -30,17 +30,20 @@ export default function MainLayout({ children }: MainLayoutProps) {
             // If Firebase is working, test demo user setup
             return testDemoUser();
           } else {
-            console.error('Firebase connection failed, skipping demo user setup');
+            // Only log in development and make it less alarming
+            console.warn('Firebase connection test failed, skipping demo user setup');
             setDemoSetupComplete(true);
           }
         })
         .then((result) => {
           if (result) {
+            console.log('✅ Demo user setup completed successfully');
           }
           setDemoSetupComplete(true);
         })
         .catch((error) => {
-          console.error('Demo user setup failed:', error);
+          // Make error logging less alarming
+          console.warn('Demo user setup encountered issues:', error.message || error);
           // Don't throw the error to prevent app crash
           setDemoSetupComplete(true);
         });

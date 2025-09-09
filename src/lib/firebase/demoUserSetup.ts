@@ -198,8 +198,8 @@ export const clearDemoData = async (): Promise<void> => {
 
     // Get all demo sections
     let sectionsSnapshot;
-    const sheetIds = sheetsSnapshot.docs.map(doc => doc.id);
-    if (sheetIds.length > 0) {
+    const sheetIds = sheetsSnapshot.docs.map(doc => doc.id).filter(id => id && id.trim() !== '');
+    if (sheetIds.length > 0 && sheetIds.length <= 10) { // Firestore 'in' limit is 10
       const sectionsQuery = query(
         collection(db, 'assetSections'),
         where('sheetId', 'in', sheetIds)
@@ -215,8 +215,8 @@ export const clearDemoData = async (): Promise<void> => {
 
     // Get all demo assets
     let assetsSnapshot;
-    const sectionIds = sectionsSnapshot.docs.map(doc => doc.id);
-    if (sectionIds.length > 0) {
+    const sectionIds = sectionsSnapshot.docs.map(doc => doc.id).filter(id => id && id.trim() !== '');
+    if (sectionIds.length > 0 && sectionIds.length <= 10) { // Firestore 'in' limit is 10
       const assetsQuery = query(
         collection(db, 'assets'),
         where('sectionId', 'in', sectionIds)

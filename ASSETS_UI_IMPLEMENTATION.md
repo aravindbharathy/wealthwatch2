@@ -34,6 +34,7 @@ User
 - **Collapsible Sections**: Organize assets within each sheet
 - **Real-time Updates**: Live data synchronization with Firebase
 - **Demo Mode**: Works without database connection
+- **Authentication-based Access Control**: UI and functionality adapt based on user authentication state
 - **Responsive Design**: Adapts to different screen sizes
 - **Performance Optimized**: Efficient data loading and rendering
 
@@ -119,6 +120,8 @@ export interface AssetSummary {
   - Data source selection (Firebase vs Demo)
   - Modal state management
   - Error handling and loading states
+  - Authentication state management
+  - Conditional UI rendering based on authentication
 
 #### 2. SummaryBar (`src/components/assets/SummaryBar.tsx`)
 - **Purpose**: Display portfolio overview and performance
@@ -132,16 +135,18 @@ export interface AssetSummary {
 - **Purpose**: Tab navigation for switching between sheets
 - **Features**:
   - Active sheet highlighting
-  - Add new sheet button
+  - Add new sheet button (conditional on authentication)
   - Inline sheet renaming
   - Sheet deletion with confirmation
+  - Authentication-aware UI rendering
 
 #### 4. SectionList (`src/components/assets/SectionList.tsx`)
 - **Purpose**: Container for all sections within a sheet
 - **Features**:
-  - Empty state handling
-  - Add section button
+  - Empty state handling with authentication-aware messaging
+  - Add section button (conditional on authentication)
   - Section management
+  - Authentication state propagation to child components
 
 #### 5. SectionItem (`src/components/assets/SectionItem.tsx`)
 - **Purpose**: Individual section with collapsible functionality
@@ -149,15 +154,18 @@ export interface AssetSummary {
   - Expand/collapse sections
   - Section summary display
   - Asset table integration
-  - Section actions menu
+  - Section actions menu (conditional on authentication)
+  - Add asset button (conditional on authentication)
+  - Authentication state propagation to AssetTable
 
 #### 6. AssetTable (`src/components/assets/AssetTable.tsx`)
 - **Purpose**: Display assets in table format
 - **Features**:
   - Sortable columns (Asset, IRR, Value)
   - Performance indicators
-  - Action buttons (edit, delete)
+  - Action buttons (edit, delete) - conditional on authentication
   - Drag and drop support (prepared)
+  - Authentication-aware UI rendering
 
 ### Modal Components
 
@@ -226,6 +234,9 @@ export function useSectionAssets(sectionId: string) {
 The application uses React's built-in state management with the following key states:
 
 ```typescript
+// Authentication state (from AuthContext)
+const { user, isDemoUser, signInAsDemo } = useAuthNew();
+
 // Main page state
 const [activeSheetId, setActiveSheetId] = useState<string>('');
 const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -235,6 +246,9 @@ const [demoMode, setDemoMode] = useState<boolean>(config.features.enableDemoMode
 const [isAddAssetModalOpen, setIsAddAssetModalOpen] = useState(false);
 const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false);
 const [isAddSheetModalOpen, setIsAddSheetModalOpen] = useState(false);
+
+// Authentication checks
+const isAuthenticated = Boolean(user || isDemoUser);
 ```
 
 ## Features
@@ -242,24 +256,33 @@ const [isAddSheetModalOpen, setIsAddSheetModalOpen] = useState(false);
 ### Core Functionality
 
 1. **Multi-Sheet Management**
-   - Create, rename, and delete sheets
+   - Create, rename, and delete sheets (authentication required)
    - Switch between different portfolios
    - Sheet ordering and organization
+   - Authentication-aware UI controls
 
 2. **Section Organization**
-   - Create and manage sections within sheets
+   - Create and manage sections within sheets (authentication required)
    - Collapsible/expandable sections
    - Section-level summaries
+   - Authentication-based access control
 
 3. **Asset Management**
-   - Add, edit, and delete assets
+   - Add, edit, and delete assets (authentication required)
    - Multiple asset types (stocks, crypto, real estate, etc.)
    - Performance tracking and calculations
+   - Authentication-aware action buttons
 
 4. **Real-time Updates**
    - Live data synchronization
    - Automatic summary calculations
    - Performance metrics updates
+
+5. **Authentication-based Access Control**
+   - Read-only mode for signed-out users
+   - Full functionality for authenticated users (including demo users)
+   - Conditional UI rendering based on authentication state
+   - Clear messaging to guide users to sign in
 
 ### Advanced Features
 
@@ -282,6 +305,12 @@ const [isAddSheetModalOpen, setIsAddSheetModalOpen] = useState(false);
    - Graceful error states
    - Loading indicators
    - Fallback UI components
+
+5. **Authentication Integration**
+   - Seamless integration with Firebase Auth
+   - Demo user support with persistent data
+   - Authentication state management
+   - Conditional feature access
 
 ## Styling & Design
 
@@ -326,6 +355,96 @@ The implementation follows a consistent design system:
   animation: shimmer 1.5s infinite;
 }
 ```
+
+## Authentication & Access Control
+
+### Overview
+The Assets Page implements comprehensive authentication-based access control to ensure data security while providing appropriate user experiences for different authentication states.
+
+### Authentication States
+
+#### 1. Signed Out Users
+- **UI State**: Read-only mode with no action buttons visible
+- **Functionality**: Can view existing data but cannot modify anything
+- **Messaging**: Clear guidance to sign in for full functionality
+- **Components Affected**: All interactive elements are conditionally rendered
+
+#### 2. Demo Users
+- **UI State**: Full functionality with sample data
+- **Functionality**: Complete CRUD operations on demo data
+- **Data Persistence**: Changes are saved to Firebase database
+- **Authentication**: Uses a special demo user ID for data isolation
+
+#### 3. Authenticated Users (Google)
+- **UI State**: Full functionality with personal data
+- **Functionality**: Complete CRUD operations on personal data
+- **Data Persistence**: Changes are saved to user's Firebase collection
+- **Authentication**: Uses Firebase Auth with Google provider
+
+### Implementation Details
+
+#### Authentication Context Integration
+```typescript
+// Authentication state from AuthContext
+const { user, isDemoUser, signInAsDemo } = useAuthNew();
+
+// Authentication check
+const isAuthenticated = Boolean(user || isDemoUser);
+```
+
+#### Conditional UI Rendering
+```typescript
+// Example: Conditional button rendering
+{isAuthenticated && (
+  <button onClick={handleAddSheet}>
+    Add Sheet
+  </button>
+)}
+```
+
+#### Handler-Level Protection
+```typescript
+const handleAddSheet = () => {
+  // Only allow adding sheets if user is authenticated
+  if (!user && !isDemoUser) {
+    return;
+  }
+  setIsAddSheetModalOpen(true);
+};
+```
+
+### Component-Level Authentication
+
+#### AssetsPage
+- Manages authentication state
+- Passes `isAuthenticated` prop to child components
+- Implements authentication checks in event handlers
+
+#### SheetTabs
+- Conditionally renders "New Sheet" button
+- Hides sheet management actions when not authenticated
+
+#### SectionList
+- Conditionally renders "Add Section" buttons
+- Updates empty state messaging based on authentication
+- Passes authentication state to SectionItem components
+
+#### SectionItem
+- Conditionally renders section actions dropdown
+- Hides "Add Asset" button when not authenticated
+- Passes authentication state to AssetTable
+
+#### AssetTable
+- Conditionally renders asset action buttons (edit/delete)
+- Maintains read-only view for signed-out users
+
+### User Experience Benefits
+
+1. **Clear Visual Feedback**: Users immediately understand their access level
+2. **Guided Actions**: Appropriate messaging guides users to sign in
+3. **Data Protection**: Prevents unauthorized modifications
+4. **Flexible Access**: Supports multiple authentication methods
+5. **Seamless Transitions**: Smooth experience when signing in/out
 
 ## Demo Mode
 
@@ -416,44 +535,61 @@ src/
    Navigate to: http://localhost:3000/assets
    ```
 
-2. **Demo Mode (Default)**
-   - The page loads with sample data
-   - All features are functional
-   - No database connection required
+2. **Signed Out Mode**
+   - View existing data in read-only mode
+   - No ability to add, edit, or delete content
+   - Clear messaging to sign in for full functionality
 
-3. **Real Data Mode**
+3. **Demo Mode**
+   - Sign in as demo user for full functionality with sample data
+   - All features are functional
+   - Data persists in Firebase database
+   - No real Google account required
+
+4. **Real Data Mode**
    - Sign in with Google
    - Connect to Firebase
    - Your real data will be displayed
+   - Full CRUD functionality available
 
 ### Basic Operations
 
+> **Note**: All create, edit, and delete operations require authentication. Sign in or use demo mode to access these features.
+
 #### Creating a New Sheet
-1. Click the "New Sheet" button in the tab bar
-2. Enter a name for your sheet
-3. Click "Add Sheet"
+1. Ensure you're signed in (Google or demo user)
+2. Click the "New Sheet" button in the tab bar
+3. Enter a name for your sheet
+4. Click "Add Sheet"
 
 #### Adding a Section
-1. Click "NEW SECTION" at the bottom
-2. Enter a section name (e.g., "Robinhood Account")
-3. Click "Add Section"
+1. Ensure you're signed in (Google or demo user)
+2. Click "NEW SECTION" at the bottom
+3. Enter a section name (e.g., "Robinhood Account")
+4. Click "Add Section"
 
 #### Adding an Asset
-1. Expand a section
-2. Click "ADD ASSET" in the section
-3. Fill out the asset form:
+1. Ensure you're signed in (Google or demo user)
+2. Expand a section
+3. Click "ADD ASSET" in the section
+4. Fill out the asset form:
    - Asset name
    - Type (stock, crypto, etc.)
    - Symbol (for stocks/crypto)
    - Quantity
    - Current value
    - Cost basis
-4. Click "Add Asset"
+5. Click "Add Asset"
 
 #### Managing Assets
-- **Edit**: Click the edit icon next to an asset
-- **Delete**: Click the delete icon (with confirmation)
+- **Edit**: Click the edit icon next to an asset (authentication required)
+- **Delete**: Click the delete icon (with confirmation, authentication required)
 - **Reorder**: Drag and drop assets (future feature)
+
+#### Authentication States
+- **Signed Out**: View-only mode with no action buttons visible
+- **Demo User**: Full functionality with sample data
+- **Google User**: Full functionality with personal data
 
 ### Advanced Features
 
@@ -508,9 +644,15 @@ src/
 
 ## Conclusion
 
-The Assets Page UI implementation provides a comprehensive, spreadsheet-like interface for managing investment portfolios. With its hierarchical data structure, real-time updates, and demo mode capabilities, it offers both powerful functionality and excellent user experience.
+The Assets Page UI implementation provides a comprehensive, spreadsheet-like interface for managing investment portfolios. With its hierarchical data structure, real-time updates, demo mode capabilities, and authentication-based access control, it offers both powerful functionality and excellent user experience.
 
-The modular architecture makes it easy to extend and maintain, while the responsive design ensures it works across all devices. The implementation successfully balances complexity with usability, providing professional-grade portfolio management tools in an intuitive interface.
+The modular architecture makes it easy to extend and maintain, while the responsive design ensures it works across all devices. The authentication integration provides secure, role-based access to features, ensuring data protection while maintaining usability. The implementation successfully balances complexity with usability, providing professional-grade portfolio management tools in an intuitive interface.
+
+Key achievements include:
+- **Secure Access Control**: Authentication-based UI rendering and functionality
+- **Flexible User Experience**: Support for signed-out viewing, demo users, and authenticated users
+- **Data Persistence**: Demo users get persistent data storage in Firebase
+- **Clear User Guidance**: Appropriate messaging and UI states for different authentication levels
 
 ---
 

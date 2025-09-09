@@ -44,8 +44,8 @@ export default function AssetsPage() {
 
   const { summary: demoSummary, loading: demoSummaryLoading } = useDemoAssetSummary(activeSheetId);
 
-  // Real Firebase hooks - use demo user ID if demo user is active
-  const effectiveUserId = isDemoUser ? DEMO_USER_ID : (user?.uid || '');
+  // Real Firebase hooks - use demo user ID if demo user is active AND user exists
+  const effectiveUserId = (isDemoUser && user) ? DEMO_USER_ID : (user?.uid || '');
   const {
     sheets,
     loading: sheetsLoading,
@@ -114,6 +114,13 @@ export default function AssetsPage() {
     }
   }, [currentSheets, activeSheetId]);
 
+  // Clear active sheet when user signs out
+  useEffect(() => {
+    if (!user && !isDemoUser) {
+      setActiveSheetId('');
+    }
+  }, [user, isDemoUser]);
+
   // Initialize expanded sections
   useEffect(() => {
     if (sections.length > 0) {
@@ -133,6 +140,10 @@ export default function AssetsPage() {
   };
 
   const handleAddSheet = () => {
+    // Only allow adding sheets if user is authenticated (including demo user)
+    if (!user && !isDemoUser) {
+      return;
+    }
     setIsAddSheetModalOpen(true);
   };
 
@@ -198,6 +209,10 @@ export default function AssetsPage() {
   };
 
   const handleAddSection = () => {
+    // Only allow adding sections if user is authenticated (including demo user)
+    if (!user && !isDemoUser) {
+      return;
+    }
     setIsAddSectionModalOpen(true);
   };
 
@@ -324,16 +339,23 @@ export default function AssetsPage() {
               </svg>
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Sheets Yet</h3>
-            <p className="text-gray-500 mb-6">Create your first sheet to start tracking your investments</p>
-            <button
-              onClick={handleAddSheet}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Create First Sheet
-            </button>
+            <p className="text-gray-500 mb-6">
+              {user || isDemoUser 
+                ? "Create your first sheet to start tracking your investments"
+                : "Sign in to create and manage your investment sheets"
+              }
+            </p>
+            {(user || isDemoUser) && (
+              <button
+                onClick={handleAddSheet}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Create First Sheet
+              </button>
+            )}
           </div>
         </div>
 
@@ -412,6 +434,7 @@ export default function AssetsPage() {
         onAddSheet={handleAddSheet}
         onRenameSheet={handleRenameSheet}
         onDeleteSheet={handleDeleteSheet}
+        isAuthenticated={Boolean(user || isDemoUser)}
       />
 
       {/* Section List */}
@@ -426,6 +449,7 @@ export default function AssetsPage() {
         onDeleteAsset={handleDeleteAsset}
         onAddSection={handleAddSection}
         loading={currentSheetsLoading}
+        isAuthenticated={Boolean(user || isDemoUser)}
       />
 
       {/* Modals */}
