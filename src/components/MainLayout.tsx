@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { AuthProviderNew as AuthProvider } from "../lib/contexts/AuthContext";
+// import { testDemoUserSetup } from "../lib/firebase/demoUserUtils";
+import { testDemoUserSetup as testDemoUser } from "../lib/firebase/demoUserTest";
+import { testFirebaseConnection } from "../lib/firebase/firebaseTest";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -10,10 +14,38 @@ interface MainLayoutProps {
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [demoSetupComplete, setDemoSetupComplete] = useState(false);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
+  // Initialize demo user setup on component mount (development only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && !demoSetupComplete) {
+      // First test Firebase connection
+      testFirebaseConnection()
+        .then((firebaseResult) => {
+          if (firebaseResult.success) {
+            // If Firebase is working, test demo user setup
+            return testDemoUser();
+          } else {
+            console.error('Firebase connection failed, skipping demo user setup');
+            setDemoSetupComplete(true);
+          }
+        })
+        .then((result) => {
+          if (result) {
+          }
+          setDemoSetupComplete(true);
+        })
+        .catch((error) => {
+          console.error('Demo user setup failed:', error);
+          // Don't throw the error to prevent app crash
+          setDemoSetupComplete(true);
+        });
+    }
+  }, [demoSetupComplete]);
 
   // Skip authentication for now - show dashboard directly
   // if (loading) {
@@ -42,20 +74,22 @@ export default function MainLayout({ children }: MainLayoutProps) {
   // }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
-      
-      {/* Main content area */}
-      <div className={`transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-0 lg:ml-16"}`}>
-        {/* Header */}
-        <Header onMenuClick={toggleSidebar} />
+    <AuthProvider>
+      <div className="min-h-screen bg-gray-50">
+        {/* Sidebar */}
+        <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
         
-        {/* Page content */}
-        <main className="p-6">
-          {children}
-        </main>
+        {/* Main content area */}
+        <div className={`transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-0 lg:ml-16"}`}>
+          {/* Header */}
+          <Header onMenuClick={toggleSidebar} />
+          
+          {/* Page content */}
+          <main className="p-6">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </AuthProvider>
   );
 }

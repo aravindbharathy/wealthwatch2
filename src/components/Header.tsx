@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface HeaderProps {
   onMenuClick?: () => void;
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
+  const { user, isDemoUser, signOut } = useAuth();
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
 
@@ -104,14 +106,31 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
           {/* User profile */}
           <div className="flex items-center space-x-3">
-            <span className="text-sm font-medium text-gray-700">
-              Demo User
-            </span>
-            <div className="relative">
-              <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                D
-              </div>
-            </div>
+            {user ? (
+              <>
+                <span className="text-sm font-medium text-gray-700">
+                  {user.displayName || user.email}
+                  {isDemoUser && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Demo
+                    </span>
+                  )}
+                </span>
+                <div className="relative">
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                    {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                  </div>
+                </div>
+                <button
+                  onClick={signOut}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <span className="text-sm text-gray-500">Not signed in</span>
+            )}
           </div>
         </div>
       </div>

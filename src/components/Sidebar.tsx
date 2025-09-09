@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
+import DemoSignInButton from "./DemoSignInButton";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { user, isDemoUser, signInAsDemo } = useAuth();
 
   const navigationItems = [
     {
@@ -96,6 +99,65 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Demo User Section */}
+      {!user && (
+        <div className="mt-6 px-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            {isOpen ? (
+              <div>
+                <h3 className="text-sm font-medium text-blue-800 mb-2">Try Demo</h3>
+                <p className="text-xs text-blue-600 mb-3">
+                  Sign in as a demo user to explore with sample data
+                </p>
+                <DemoSignInButton />
+              </div>
+            ) : (
+              <button
+                onClick={async () => {
+                  if (signInAsDemo) {
+                    try {
+                      await signInAsDemo();
+                    } catch (error) {
+                      console.error('Error calling signInAsDemo:', error);
+                    }
+                  } else {
+                    console.error('signInAsDemo function is not available');
+                  }
+                }}
+                className="w-full p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                title="Sign in as Demo User"
+              >
+                <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Demo User Indicator */}
+      {isDemoUser && (
+        <div className="mt-6 px-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            {isOpen ? (
+              <div>
+                <h3 className="text-sm font-medium text-green-800 mb-1">Demo User</h3>
+                <p className="text-xs text-green-600">
+                  All changes are saved to the database
+                </p>
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Demo
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       </div>
     </>
   );

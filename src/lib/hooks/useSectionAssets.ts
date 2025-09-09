@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState, useEffect } from 'react';
 import { Asset, CreateAssetInput } from '../firebase/types';
 import { 
@@ -32,8 +33,8 @@ export function useSectionAssets(sectionId: string) {
       const assetsRef = collection(db, 'assets');
       const q = query(
         assetsRef,
-        where('sectionId', '==', sectionId),
-        orderBy('createdAt', 'asc')
+        where('sectionId', '==', sectionId)
+        // Removed orderBy to avoid index requirement - will sort on client side
       );
 
       const unsubscribe = onSnapshot(q, 
@@ -46,7 +47,14 @@ export function useSectionAssets(sectionId: string) {
               updatedAt: doc.data().updatedAt as Timestamp,
             })) as Asset[];
             
-            setAssets(assetsData);
+            // Sort by createdAt on the client side
+            const sortedAssets = assetsData.sort((a, b) => {
+              const aTime = a.createdAt?.toMillis() || 0;
+              const bTime = b.createdAt?.toMillis() || 0;
+              return aTime - bTime;
+            });
+            
+            setAssets(sortedAssets);
             setLoading(false);
             setError(null);
           } catch (err) {

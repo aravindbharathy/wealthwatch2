@@ -2,6 +2,7 @@
 import { AssetSheet, AssetSection, Asset } from './types';
 import { Timestamp } from 'firebase/firestore';
 
+
 export const sampleAssetSheets: Omit<AssetSheet, 'id'>[] = [
   {
     name: 'Investment Portfolio',
@@ -23,10 +24,9 @@ export const sampleAssetSheets: Omit<AssetSheet, 'id'>[] = [
   },
 ];
 
-export const sampleAssetSections: Omit<AssetSection, 'id'>[] = [
+export const sampleAssetSections: Omit<AssetSection, 'id' | 'sheetId'>[] = [
   {
     name: 'Robinhood Joint Account',
-    sheetId: 'sheet-1',
     assets: [],
     isExpanded: true,
     order: 0,
@@ -41,7 +41,6 @@ export const sampleAssetSections: Omit<AssetSection, 'id'>[] = [
   },
   {
     name: 'Section 2',
-    sheetId: 'sheet-1',
     assets: [],
     isExpanded: false,
     order: 1,
@@ -207,19 +206,22 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
 
 // Helper function to create sample data with proper IDs
 export const createSampleData = () => {
+  const timestamp = Date.now();
   const sheets = sampleAssetSheets.map((sheet, index) => ({
     ...sheet,
-    id: `sheet-${index + 1}`,
+    id: `sheet-${timestamp}-${index + 1}`,
   }));
 
   const sections = sampleAssetSections.map((section, index) => ({
     ...section,
-    id: `section-${index + 1}`,
+    id: `section-${timestamp}-${index + 1}`,
+    sheetId: sheets[0].id, // Assign all sections to the first sheet
   }));
 
   const assets = sampleAssets.map((asset, index) => ({
     ...asset,
-    id: `asset-${index + 1}`,
+    id: `asset-${timestamp}-${index + 1}`,
+    sectionId: sections[0].id, // Assign all assets to the first section
   }));
 
   return { sheets, sections, assets };

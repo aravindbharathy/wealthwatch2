@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import { AssetSheet, AssetSection, Asset, AssetSummary } from '../firebase/types';
 import { createSampleData } from '../firebase/sampleAssets';
 
+
+// Cache for demo data to prevent duplicate creation
+let cachedDemoSheets: AssetSheet[] | null = null;
+
 // Demo mode hook that provides sample data without Firebase
 export function useDemoAssetSheets() {
   const [sheets, setSheets] = useState<AssetSheet[]>([]);
@@ -11,10 +15,19 @@ export function useDemoAssetSheets() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Use cached data if available
+    if (cachedDemoSheets) {
+      setSheets(cachedDemoSheets);
+      setLoading(false);
+      return;
+    }
+
     // Simulate loading delay
     const timer = setTimeout(() => {
       try {
         const { sheets: sampleSheets } = createSampleData();
+        // Cache the data to prevent duplicate creation
+        cachedDemoSheets = sampleSheets;
         setSheets(sampleSheets);
         setLoading(false);
         setError(null);
@@ -164,6 +177,9 @@ export function useDemoAssetSummary(sheetId: string) {
   return { summary, loading };
 }
 
+// Cache for demo assets to prevent duplicate creation
+let cachedDemoAssets: Asset[] | null = null;
+
 export function useDemoSectionAssets(sectionId: string) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,10 +191,20 @@ export function useDemoSectionAssets(sectionId: string) {
       return;
     }
 
+    // Use cached data if available
+    if (cachedDemoAssets) {
+      const sectionAssets = cachedDemoAssets.filter(asset => asset.sectionId === sectionId);
+      setAssets(sectionAssets);
+      setLoading(false);
+      return;
+    }
+
     // Simulate loading delay
     const timer = setTimeout(() => {
       try {
         const { assets: sampleAssets } = createSampleData();
+        // Cache the data to prevent duplicate creation
+        cachedDemoAssets = sampleAssets;
         // Filter assets for this section
         const sectionAssets = sampleAssets.filter(asset => asset.sectionId === sectionId);
         setAssets(sectionAssets);
@@ -237,7 +263,6 @@ export function useDemoSectionAssets(sectionId: string) {
 
   const reorderAssets = async (assetIds: string[]) => {
     // Demo implementation - just log the reorder
-    console.log('Reordering assets:', assetIds);
   };
 
   return {

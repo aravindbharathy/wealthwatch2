@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState, useEffect } from 'react';
 import { 
   AssetSheet, 
@@ -28,6 +29,36 @@ export function useAssetSheets(userId: string) {
   const [sheets, setSheets] = useState<AssetSheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Function to load sections for a specific sheet
+  const loadSectionsForSheet = async (sheetId: string): Promise<AssetSection[]> => {
+    try {
+      const sectionsRef = collection(db, 'assetSections');
+      const q = query(
+        sectionsRef,
+        where('sheetId', '==', sheetId)
+        // Removed orderBy to avoid index requirement - will sort on client side
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      const sections = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt as Timestamp,
+        updatedAt: doc.data().updatedAt as Timestamp,
+      })) as AssetSection[];
+      
+      // Sort by order on the client side
+      const sortedSections = sections.sort((a, b) => (a.order || 0) - (b.order || 0));
+      
+      return sortedSections;
+    } catch (err) {
+      console.error('Error loading sections for sheet:', err);
+      return [];
+    }
+  };
 
   useEffect(() => {
     if (!userId) {
@@ -35,47 +66,99 @@ export function useAssetSheets(userId: string) {
       return;
     }
 
-    try {
-      const sheetsRef = collection(db, 'assetSheets');
-      const q = query(
-        sheetsRef,
-        where('userId', '==', userId),
-        orderBy('order', 'asc')
-      );
+    let isMounted = true;
 
-      const unsubscribe = onSnapshot(q, 
-        (snapshot) => {
-          try {
-            const sheetsData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-              createdAt: doc.data().createdAt as Timestamp,
-              updatedAt: doc.data().updatedAt as Timestamp,
-            })) as AssetSheet[];
-            
-            setSheets(sheetsData);
-            setLoading(false);
-            setError(null);
-          } catch (err) {
-            console.error('Error processing sheets data:', err);
-            setError('Error processing data');
-            setLoading(false);
-          }
-        },
-        (err) => {
-          console.error('Firebase error:', err);
-          setError(err.message);
+    const loadSheetsWithSections = async () => {
+      try {
+        
+        // Get sheets
+        const sheetsRef = collection(db, 'assetSheets');
+        const sheetsQuery = query(
+          sheetsRef,
+          where('userId', '==', userId)
+        );
+        
+        const sheetsSnapshot = await getDocs(sheetsQuery);
+        const sheetsData = sheetsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt as Timestamp,
+          updatedAt: doc.data().updatedAt as Timestamp,
+        })) as AssetSheet[];
+        
+        // Sort by order on the client side
+        const sortedSheets = sheetsData.sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        // Load sections for each sheet
+        const sheetsWithSections = await Promise.all(
+          sortedSheets.map(async (sheet) => {
+            const sections = await loadSectionsForSheet(sheet.id);
+            return {
+              ...sheet,
+              sections: sections
+            };
+          })
+        );
+        
+        
+        if (isMounted) {
+          setSheets(sheetsWithSections);
+          setLoading(false);
+          setError(null);
+        }
+      } catch (err) {
+        console.error('Error loading sheets and sections:', err);
+        if (isMounted) {
+          setError('Error loading data');
           setLoading(false);
         }
-      );
+      }
+    };
 
-      return () => unsubscribe();
-    } catch (err) {
-      console.error('Error setting up Firebase listener:', err);
-      setError('Error connecting to database');
-      setLoading(false);
-    }
-  }, [userId]);
+    // Initial load
+    loadSheetsWithSections();
+
+    // Set up real-time listeners for both sheets and sections
+    const sheetsRef = collection(db, 'assetSheets');
+    const sheetsQuery = query(
+      sheetsRef,
+      where('userId', '==', userId)
+    );
+
+    const sectionsRef = collection(db, 'assetSections');
+    // Note: We don't actually use this query, it was just for setup
+    // const sectionsQuery = query(
+    //   sectionsRef,
+    //   where('sheetId', 'in', []) // Removed to avoid empty array error
+    // );
+
+    let sheetsUnsubscribe: (() => void) | null = null;
+    let sectionsUnsubscribe: (() => void) | null = null;
+
+    const setupListeners = () => {
+      // Listen to sheets changes
+      sheetsUnsubscribe = onSnapshot(sheetsQuery, 
+        async (snapshot) => {
+          await loadSheetsWithSections();
+        },
+        (err) => {
+          console.error('Firebase sheets error:', err);
+          if (isMounted) {
+            setError(err.message);
+            setLoading(false);
+          }
+        }
+      );
+    };
+
+    setupListeners();
+
+    return () => {
+      isMounted = false;
+      if (sheetsUnsubscribe) sheetsUnsubscribe();
+      if (sectionsUnsubscribe) sectionsUnsubscribe();
+    };
+  }, [userId, refreshTrigger]);
 
   const createSheet = async (input: CreateAssetSheetInput) => {
     try {
@@ -135,8 +218,13 @@ export function useAssetSheets(userId: string) {
       };
 
       const docRef = await addDoc(collection(db, 'assetSections'), newSection);
+      
+      // Force a refresh of the sheets data to show the new section immediately
+      setRefreshTrigger(prev => prev + 1);
+      
       return docRef.id;
     } catch (err) {
+      console.error('❌ Error creating section:', err);
       setError(err instanceof Error ? err.message : 'Failed to create section');
       throw err;
     }
@@ -149,6 +237,9 @@ export function useAssetSheets(userId: string) {
         ...updates,
         updatedAt: Timestamp.now(),
       });
+      
+      // Trigger refresh to show updated section
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update section');
       throw err;
@@ -158,6 +249,9 @@ export function useAssetSheets(userId: string) {
   const deleteSection = async (sectionId: string) => {
     try {
       await deleteDoc(doc(db, 'assetSections', sectionId));
+      
+      // Trigger refresh to show section removal
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete section');
       throw err;
@@ -222,12 +316,17 @@ export function useAssetSummary(sheetId: string) {
           return;
         }
 
-        const assetsQuery = query(
-          assetsRef,
-          where('sectionId', 'in', sectionIds)
-        );
-        
-        const assetsSnapshot = await getDocs(assetsQuery);
+        let assetsSnapshot;
+        if (sectionIds.length > 0) {
+          const assetsQuery = query(
+            assetsRef,
+            where('sectionId', 'in', sectionIds)
+          );
+          assetsSnapshot = await getDocs(assetsQuery);
+        } else {
+          // If no sections, return empty snapshot
+          assetsSnapshot = { docs: [] };
+        }
         const assets = assetsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()

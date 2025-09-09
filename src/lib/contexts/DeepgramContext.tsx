@@ -47,12 +47,10 @@ const DeepgramContextProvider: FunctionComponent<DeepgramContextProviderProps> =
 
       const apiKey = await getApiKey();
 
-      console.log("Opening WebSocket connection...");
       const socket = new WebSocket("wss://api.deepgram.com/v1/listen", ["token", apiKey]);
 
       socket.onopen = () => {
         setConnectionState(SOCKET_STATES.open);
-        console.log("WebSocket connection opened");
         audioRef.current!.addEventListener("dataavailable", (event) => {
           if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
             socket.send(event.data);
@@ -78,7 +76,6 @@ const DeepgramContextProvider: FunctionComponent<DeepgramContextProviderProps> =
 
       socket.onclose = (event) => {
         setConnectionState(SOCKET_STATES.closed);
-        console.log("WebSocket connection closed:", event.code, event.reason);
       };
 
       setConnection(socket);

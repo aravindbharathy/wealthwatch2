@@ -670,34 +670,29 @@ export const createSampleGoals = (userId: string): CreateGoalInput[] => [
 // ============================================================================
 
 export const seedTickers = async (): Promise<void> => {
-  console.log('Seeding tickers...');
   for (const ticker of sampleTickers) {
     try {
       const result = await createTicker(ticker);
       if (result.success) {
-        console.log(`✓ Created ticker: ${ticker.symbol}`);
       } else {
-        console.error(`✗ Failed to create ticker ${ticker.symbol}:`, result.error);
+        console.error(`Failed to create ticker ${ticker.symbol}:`, result.error);
       }
     } catch (error) {
-      console.error(`✗ Error creating ticker ${ticker.symbol}:`, error);
+      console.error(`Error creating ticker ${ticker.symbol}:`, error);
     }
   }
-  console.log('Ticker seeding completed.');
 };
 
 export const seedCategories = async (userId: string): Promise<void> => {
-  console.log('Seeding categories...');
   for (const category of sampleCategories) {
     try {
       const result = await createCategory(userId, category);
       if (result.success) {
-        console.log(`✓ Created category: ${category.name}`);
       } else {
-        console.error(`✗ Failed to create category ${category.name}:`, result.error);
+        console.error(`Failed to create category ${category.name}:`, result.error);
       }
     } catch (error) {
-      console.error(`✗ Error creating category ${category.name}:`, error);
+      console.error(`Error creating category ${category.name}:`, error);
     }
   }
   console.log('Category seeding completed.');

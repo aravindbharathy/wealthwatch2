@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuthNew } from '@/lib/contexts/AuthContext';
+import { clearDuplicatesFromConsole } from '@/lib/firebase/clearDuplicates';
 import { useAssetSheets, useAssetSummary } from '@/lib/hooks/useAssetSheets';
 import { useSectionAssets } from '@/lib/hooks/useSectionAssets';
 import { useDemoAssetSheets, useDemoAssetSummary, useDemoSectionAssets } from '@/lib/hooks/useDemoAssets';
 import { AssetSheet, AssetSection, Asset, CreateAssetInput, CreateAssetSheetInput, CreateAssetSectionInput } from '@/lib/firebase/types';
 import { config } from '@/lib/config';
+import { DEMO_USER_ID } from '@/lib/firebase/demoUserSetup';
 import SummaryBar from '@/components/assets/SummaryBar';
 import SheetTabs from '@/components/assets/SheetTabs';
 import SectionList from '@/components/assets/SectionList';
@@ -15,7 +17,7 @@ import AddSectionModal from '@/components/assets/modals/AddSectionModal';
 import AddSheetModal from '@/components/assets/modals/AddSheetModal';
 
 export default function AssetsPage() {
-  const { user } = useAuth();
+  const { user, isDemoUser, signInAsDemo } = useAuthNew();
   const [activeSheetId, setActiveSheetId] = useState<string>('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [demoMode, setDemoMode] = useState<boolean>(config.features.enableDemoMode);
@@ -42,7 +44,8 @@ export default function AssetsPage() {
 
   const { summary: demoSummary, loading: demoSummaryLoading } = useDemoAssetSummary(activeSheetId);
 
-  // Real Firebase hooks
+  // Real Firebase hooks - use demo user ID if demo user is active
+  const effectiveUserId = isDemoUser ? DEMO_USER_ID : (user?.uid || '');
   const {
     sheets,
     loading: sheetsLoading,
@@ -53,29 +56,46 @@ export default function AssetsPage() {
     createSection,
     updateSection,
     deleteSection,
-  } = useAssetSheets(user?.uid || '');
+  } = useAssetSheets(effectiveUserId);
 
   const { summary, loading: summaryLoading } = useAssetSummary(activeSheetId);
 
-  // Use demo mode if no user or if there's an error with Firebase
-  const useDemo = demoMode || !user || (sheetsError && !sheetsLoading);
+  // Use demo mode if:
+  // 1. No user and demo mode is enabled, OR  
+  // 2. There's a Firebase error and we're not loading
+  // NOTE: Demo user (isDemoUser = true) should use REAL Firebase data for persistence
+  const useDemo = Boolean((!user && demoMode) || (sheetsError && !sheetsLoading));
   
-  // Select the appropriate data source
-  const currentSheets = useDemo ? demoSheets : sheets;
-  const currentSheetsLoading = useDemo ? demoSheetsLoading : sheetsLoading;
-  const currentSheetsError = useDemo ? demoSheetsError : sheetsError;
-  const currentSummary = useDemo ? demoSummary : summary;
-  const currentSummaryLoading = useDemo ? demoSummaryLoading : summaryLoading;
+  // Make clear duplicates function available globally for testing
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).clearDuplicatesFromConsole = clearDuplicatesFromConsole;
+    }
+  }, []);
+
+  
+  
+  // Always use Firebase data for persistence, even in demo mode
+  const currentSheets = sheets;
+  const currentSheetsLoading = sheetsLoading;
+  const currentSheetsError = sheetsError;
+  const currentSummary = summary;
+  const currentSummaryLoading = summaryLoading;
+  
 
   // Get active sheet
   const activeSheet = useMemo(() => {
-    return currentSheets.find(sheet => sheet.id === activeSheetId) || null;
+    const sheet = currentSheets.find(sheet => sheet.id === activeSheetId) || null;
+    return sheet;
   }, [currentSheets, activeSheetId]);
 
   // Get sections for active sheet
   const sections = useMemo(() => {
-    if (!activeSheet) return [];
-    return activeSheet.sections || [];
+    if (!activeSheet) {
+      return [];
+    }
+    const sections = activeSheet.sections || [];
+    return sections;
   }, [activeSheet]);
 
   // Get assets by section
@@ -118,8 +138,8 @@ export default function AssetsPage() {
 
   const handleCreateSheet = async (input: CreateAssetSheetInput) => {
     try {
-      const createFn = useDemo ? demoCreateSheet : createSheet;
-      const sheetId = await createFn({
+      // Always use Firebase functions for persistence, even for demo users
+      const sheetId = await createSheet({
         ...input,
         userId: user?.uid || 'demo-user',
       });
@@ -131,8 +151,8 @@ export default function AssetsPage() {
 
   const handleRenameSheet = async (sheetId: string, newName: string) => {
     try {
-      const updateFn = useDemo ? demoUpdateSheet : updateSheet;
-      await updateFn(sheetId, { name: newName });
+      // Always use Firebase functions for persistence, even for demo users
+      await updateSheet(sheetId, { name: newName });
     } catch (error) {
       console.error('Error renaming sheet:', error);
     }
@@ -141,8 +161,8 @@ export default function AssetsPage() {
   const handleDeleteSheet = async (sheetId: string) => {
     if (confirm('Are you sure you want to delete this sheet? This action cannot be undone.')) {
       try {
-        const deleteFn = useDemo ? demoDeleteSheet : deleteSheet;
-        await deleteFn(sheetId);
+        // Always use Firebase functions for persistence, even for demo users
+        await deleteSheet(sheetId);
         if (activeSheetId === sheetId) {
           const remainingSheets = currentSheets.filter(s => s.id !== sheetId);
           if (remainingSheets.length > 0) {
@@ -170,8 +190,8 @@ export default function AssetsPage() {
     setExpandedSections(newExpandedSections);
     
     try {
-      const updateFn = useDemo ? demoUpdateSection : updateSection;
-      await updateFn(sectionId, { isExpanded: !isExpanded });
+      // Always use Firebase functions for persistence, even for demo users
+      await updateSection(sectionId, { isExpanded: !isExpanded });
     } catch (error) {
       console.error('Error updating section:', error);
     }
@@ -183,27 +203,26 @@ export default function AssetsPage() {
 
   const handleCreateSection = async (input: CreateAssetSectionInput) => {
     try {
-      const createFn = useDemo ? demoCreateSection : createSection;
-      await createFn({
+      // Always use Firebase functions for persistence, even for demo users
+      await createSection({
         ...input,
         sheetId: activeSheetId,
         order: sections.length,
       });
     } catch (error) {
-      console.error('Error creating section:', error);
+      console.error('❌ Error creating section:', error);
     }
   };
 
   const handleEditSection = (sectionId: string) => {
     // TODO: Implement edit section functionality
-    console.log('Edit section:', sectionId);
   };
 
   const handleDeleteSection = async (sectionId: string) => {
     if (confirm('Are you sure you want to delete this section? All assets in this section will also be deleted.')) {
       try {
-        const deleteFn = useDemo ? demoDeleteSection : deleteSection;
-        await deleteFn(sectionId);
+        // Always use Firebase functions for persistence, even for demo users
+        await deleteSection(sectionId);
       } catch (error) {
         console.error('Error deleting section:', error);
       }
@@ -219,7 +238,6 @@ export default function AssetsPage() {
     try {
       // This would be handled by the useSectionAssets hook
       // For now, we'll just close the modal
-      console.log('Create asset:', input);
     } catch (error) {
       console.error('Error creating asset:', error);
     }
@@ -228,14 +246,12 @@ export default function AssetsPage() {
   const handleEditAsset = (assetId: string) => {
     setEditingAssetId(assetId);
     // TODO: Implement edit asset functionality
-    console.log('Edit asset:', assetId);
   };
 
   const handleDeleteAsset = async (assetId: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
       try {
         // This would be handled by the useSectionAssets hook
-        console.log('Delete asset:', assetId);
       } catch (error) {
         console.error('Error deleting asset:', error);
       }
@@ -339,14 +355,48 @@ export default function AssetsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-blue-800">Demo Mode</h3>
-              <p className="text-sm text-blue-600">You&apos;re viewing sample data. Sign in to use your real data.</p>
+              <p className="text-sm text-blue-600">
+                {isDemoUser 
+                  ? "You're signed in as a demo user with persistent data. Sign in with Google to use your real data."
+                  : "You're viewing sample data. Sign in to use your real data or try the demo user."
+                }
+              </p>
             </div>
-            <button
-              onClick={() => setDemoMode(!demoMode)}
-              className="text-sm text-blue-600 hover:text-blue-800 underline"
-            >
-              {demoMode ? 'Disable Demo' : 'Enable Demo'}
-            </button>
+            <div className="flex gap-2">
+              {!isDemoUser && (
+                <button
+                  onClick={() => {
+                    signInAsDemo();
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  Sign in as Demo User
+                </button>
+              )}
+              <button
+                onClick={() => setDemoMode(!demoMode)}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                {demoMode ? 'Disable Demo' : 'Enable Demo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Demo User Indicator */}
+      {isDemoUser && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-green-800">Demo User Active</h3>
+              <p className="text-sm text-green-600">You're signed in as a demo user. All changes will be saved to the database.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Demo User
+              </span>
+            </div>
           </div>
         </div>
       )}
