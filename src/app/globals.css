@@ -10,9 +10,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --foreground-rgb: 0, 0, 0;
+    --background-start-rgb: 255, 255, 255;
+    --background-end-rgb: 255, 255, 255;
   }
 }
 
@@ -30,4 +30,83 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* Custom styles for Assets page */
+.asset-table-row {
+  @apply transition-colors duration-150;
+}
+
+.asset-table-row:hover {
+  @apply bg-gray-50;
+}
+
+.performance-positive {
+  @apply text-green-600;
+}
+
+.performance-negative {
+  @apply text-red-600;
+}
+
+.performance-neutral {
+  @apply text-gray-600;
+}
+
+.section-header {
+  @apply cursor-pointer transition-colors duration-150;
+}
+
+.section-header:hover {
+  @apply bg-gray-50;
+}
+
+.sheet-tab {
+  @apply relative transition-all duration-200;
+}
+
+.sheet-tab.active {
+  @apply bg-blue-50 border-b-2 border-blue-500;
+}
+
+.sheet-tab:hover:not(.active) {
+  @apply bg-gray-50;
+}
+
+.modal-backdrop {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+}
+
+.modal-content {
+  @apply bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto;
+}
+
+/* Custom scrollbar for better UX */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded hover:bg-gray-400;
+}
+
+/* Animation for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
 }

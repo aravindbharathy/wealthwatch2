@@ -1,0 +1,151 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { Asset, CreateAssetInput } from '../firebase/types';
+import { 
+  collection, 
+  doc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy,
+  onSnapshot,
+  Timestamp 
+} from 'firebase/firestore';
+import { db } from '../firebase/firebase';
+
+export function useSectionAssets(sectionId: string) {
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sectionId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const assetsRef = collection(db, 'assets');
+      const q = query(
+        assetsRef,
+        where('sectionId', '==', sectionId),
+        orderBy('createdAt', 'asc')
+      );
+
+      const unsubscribe = onSnapshot(q, 
+        (snapshot) => {
+          try {
+            const assetsData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              createdAt: doc.data().createdAt as Timestamp,
+              updatedAt: doc.data().updatedAt as Timestamp,
+            })) as Asset[];
+            
+            setAssets(assetsData);
+            setLoading(false);
+            setError(null);
+          } catch (err) {
+            console.error('Error processing assets data:', err);
+            setError('Error processing data');
+            setLoading(false);
+          }
+        },
+        (err) => {
+          console.error('Firebase error:', err);
+          setError(err.message);
+          setLoading(false);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Error setting up Firebase listener:', err);
+      setError('Error connecting to database');
+      setLoading(false);
+    }
+  }, [sectionId]);
+
+  const createAsset = async (input: CreateAssetInput & { sectionId: string }) => {
+    try {
+      const newAsset: Omit<Asset, 'id'> = {
+        ...input,
+        valueByDate: [],
+        transactions: [],
+        totalReturn: input.currentValue - input.costBasis,
+        accountMapping: { isLinked: false },
+        cashFlow: [],
+        metadata: {
+          tags: [],
+          customFields: {},
+          ...input.metadata,
+        },
+        performance: {
+          totalReturnPercent: input.costBasis > 0 ? 
+            ((input.currentValue - input.costBasis) / input.costBasis) * 100 : 0,
+        },
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      const docRef = await addDoc(collection(db, 'assets'), newAsset);
+      return docRef.id;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create asset');
+      throw err;
+    }
+  };
+
+  const updateAsset = async (assetId: string, updates: Partial<Asset>) => {
+    try {
+      const assetRef = doc(db, 'assets', assetId);
+      await updateDoc(assetRef, {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update asset');
+      throw err;
+    }
+  };
+
+  const deleteAsset = async (assetId: string) => {
+    try {
+      await deleteDoc(doc(db, 'assets', assetId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete asset');
+      throw err;
+    }
+  };
+
+  const reorderAssets = async (assetIds: string[]) => {
+    try {
+      const updatePromises = assetIds.map((assetId, index) => {
+        const assetRef = doc(db, 'assets', assetId);
+        return updateDoc(assetRef, {
+          order: index,
+          updatedAt: Timestamp.now(),
+        });
+      });
+      
+      await Promise.all(updatePromises);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder assets');
+      throw err;
+    }
+  };
+
+  return {
+    assets,
+    loading,
+    error,
+    createAsset,
+    updateAsset,
+    deleteAsset,
+    reorderAssets,
+  };
+}
