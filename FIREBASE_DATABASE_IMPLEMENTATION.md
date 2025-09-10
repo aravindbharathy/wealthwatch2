@@ -21,6 +21,10 @@ src/lib/firebase/
 
 ## Database Collections
 
+### ✅ **USER-SCOPED ARCHITECTURE IMPLEMENTED**
+
+The database has been successfully migrated to a user-scoped architecture for better security, performance, and scalability. All user data is now properly isolated under `users/{userId}/` collections.
+
 ### 1. Users Collection (`users/{userId}`)
 - **Purpose**: Store user profile, preferences, and settings
 - **Structure**: Nested subcollections for organized data
@@ -29,7 +33,23 @@ src/lib/firebase/
   - User preferences (currency, date format, notifications)
   - Application settings (theme, language, privacy)
 
-### 2. Assets Collection (`users/{userId}/assets/{assetId}`)
+### 2. Asset Sheets Collection (`users/{userId}/sheets/{sheetId}`)
+- **Purpose**: Organize assets into logical groups (e.g., "Investment Portfolio", "Retirement Account")
+- **Key Features**:
+  - Hierarchical organization of assets
+  - Multiple sheets per user
+  - Sheet-level analytics and summaries
+  - User-scoped data isolation
+
+### 3. Asset Sections Collection (`users/{userId}/sections/{sectionId}`)
+- **Purpose**: Sub-organize assets within sheets (e.g., "Robinhood Account", "401k Holdings")
+- **Key Features**:
+  - Nested organization under sheets
+  - Section-level performance tracking
+  - Expandable/collapsible UI support
+  - Real-time section summaries
+
+### 4. Assets Collection (`users/{userId}/assets/{assetId}`)
 - **Purpose**: Track all user assets (stocks, crypto, real estate, etc.)
 - **Key Features**:
   - Support for multiple asset types
@@ -37,8 +57,9 @@ src/lib/firebase/
   - Performance tracking
   - Historical value data
   - Account linking capabilities
+  - **NEW**: References to parent section via `sectionId`
 
-### 3. Debts Collection (`users/{userId}/debts/{debtId}`)
+### 5. Debts Collection (`users/{userId}/debts/{debtId}`)
 - **Purpose**: Manage all debt obligations
 - **Key Features**:
   - Multiple debt types (credit cards, mortgages, loans)
@@ -46,7 +67,7 @@ src/lib/firebase/
   - Interest rate management
   - Due date tracking
 
-### 4. Accounts Collection (`users/{userId}/accounts/{accountId}`)
+### 6. Accounts Collection (`users/{userId}/accounts/{accountId}`)
 - **Purpose**: Track financial accounts and their holdings
 - **Key Features**:
   - Multiple account types (checking, savings, brokerage, etc.)
@@ -54,7 +75,7 @@ src/lib/firebase/
   - Transaction history
   - Integration status tracking
 
-### 5. Goals Collection (`users/{userId}/goals/{goalId}`)
+### 7. Goals Collection (`users/{userId}/goals/{goalId}`)
 - **Purpose**: Set and track financial goals
 - **Key Features**:
   - Goal progress tracking
@@ -62,7 +83,7 @@ src/lib/firebase/
   - Projected completion dates
   - Priority management
 
-### 6. Analytics Collection (`users/{userId}/analytics/{date}`)
+### 8. Analytics Collection (`users/{userId}/analytics/{date}`)
 - **Purpose**: Store calculated portfolio analytics
 - **Key Features**:
   - Net worth calculations
@@ -70,7 +91,7 @@ src/lib/firebase/
   - Performance metrics
   - Risk assessment
 
-### 7. Historical Data Collection (`users/{userId}/history/{timestamp}`)
+### 9. Historical Data Collection (`users/{userId}/history/{timestamp}`)
 - **Purpose**: Store daily snapshots of portfolio data
 - **Key Features**:
   - Net worth snapshots
@@ -78,19 +99,56 @@ src/lib/firebase/
   - Debt balance tracking
   - Account balance tracking
 
-### 8. Categories Collection (`users/{userId}/categories/{categoryId}`)
+### 10. Categories Collection (`users/{userId}/categories/{categoryId}`)
 - **Purpose**: Organize and categorize data
 - **Key Features**:
   - Custom categorization
   - Color and icon support
   - Hierarchical organization
 
-### 9. Tickers Collection (`tickers/{tickerId}`)
+### 11. Tickers Collection (`tickers/{tickerId}`)
 - **Purpose**: Global reference for stocks, crypto, and other tickers
 - **Key Features**:
   - Comprehensive ticker database
   - Market data integration
   - Search capabilities
+
+## ✅ **MIGRATION TO USER-SCOPED ARCHITECTURE COMPLETED**
+
+### Migration Overview
+The database has been successfully migrated from a global collection structure to a user-scoped architecture. This migration provides significant improvements in security, performance, and scalability.
+
+### Migration Benefits
+- **🔒 Enhanced Security**: User data is completely isolated by user ID
+- **⚡ Better Performance**: Optimized queries with user-scoped collections
+- **📈 Improved Scalability**: Ready for multi-user growth and enterprise use
+- **🛡️ Data Privacy**: No cross-user data access possible
+- **🔧 Simplified Queries**: No need for `where('userId', '==', userId)` filters
+
+### New Architecture Structure
+```
+users/
+├── {userId}/
+│   ├── sheets/          # Asset organization sheets
+│   ├── sections/        # Asset sections within sheets
+│   ├── assets/          # Individual assets
+│   ├── debts/           # User debts
+│   ├── accounts/        # Financial accounts
+│   ├── goals/           # Financial goals
+│   ├── analytics/       # Portfolio analytics
+│   ├── history/         # Historical snapshots
+│   ├── categories/      # Custom categories
+│   ├── preferences      # User preferences
+│   └── notifications    # Notification settings
+└── (old global collections removed)
+```
+
+### Migration Details
+- **✅ Data Migration**: All existing data successfully migrated to new structure
+- **✅ Code Updates**: All hooks and utilities updated for user-scoped collections
+- **✅ UI Integration**: Asset management interface fully functional with new structure
+- **✅ Database Cleanup**: Old global collections removed
+- **✅ Production Ready**: Clean, optimized codebase with no migration artifacts
 
 ## Key Features
 
@@ -198,23 +256,64 @@ await seedAllData(userId);
 ## Security Considerations
 
 ### Firestore Security Rules
-The following security rules should be implemented in Firebase:
+The following security rules are implemented for the user-scoped architecture:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only access their own data
+    // Users can only access their own data - user-scoped collections
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Subcollections inherit parent permissions
-      match /{document=**} {
+      // All subcollections inherit parent permissions
+      match /sheets/{sheetId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /sections/{sectionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /assets/{assetId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /debts/{debtId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /accounts/{accountId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /goals/{goalId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /analytics/{date} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /history/{timestamp} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /categories/{categoryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // User preferences and settings
+      match /preferences {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /notifications {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
     
-    // Tickers are publicly readable
+    // Tickers are publicly readable (global reference data)
     match /tickers/{tickerId} {
       allow read: if true;
       allow write: if false; // Only admin can write

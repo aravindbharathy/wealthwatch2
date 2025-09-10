@@ -114,9 +114,6 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log('⚡️ Force reloading page immediately...');
       window.location.reload();
     },
-    testDemoUserState: () => {
-      const isDemoSignedIn = localStorage.getItem('demo-user-signed-in') === 'true';
-    },
     forceDemoUserState: () => {
       console.log('🚀 Force setting demo user state...');
       localStorage.setItem('demo-user-signed-in', 'true');

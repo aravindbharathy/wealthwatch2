@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { getPreferredCurrency, setPreferredCurrency } from "@/lib/preferences";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -11,6 +12,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { user, isDemoUser, signOut } = useAuth();
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const currencyRef = useRef<HTMLDivElement>(null);
 
   const currencies = [
     { code: "USD", symbol: "$", name: "US Dollar" },
@@ -18,8 +21,51 @@ export default function Header({ onMenuClick }: HeaderProps) {
     { code: "GBP", symbol: "£", name: "British Pound" },
     { code: "INR", symbol: "₹", name: "Indian Rupee" },
     { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
-    { code: "AUD", symbol: "A$", name: "Australian Dollar" }
+    { code: "AUD", symbol: "A$", name: "Australian Dollar" },
+    { code: "JPY", symbol: "¥", name: "Japanese Yen" },
+    { code: "CHF", symbol: "CHF", name: "Swiss Franc" },
+    { code: "HKD", symbol: "HK$", name: "Hong Kong Dollar" },
+    { code: "SGD", symbol: "S$", name: "Singapore Dollar" }
   ];
+
+  // Load preferred currency on mount
+  useEffect(() => {
+    const loadPreferredCurrency = async () => {
+      const currency = await getPreferredCurrency(user?.uid);
+      setSelectedCurrency(currency);
+    };
+    loadPreferredCurrency();
+  }, [user?.uid]);
+
+  // Close currency dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (currencyRef.current && !currencyRef.current.contains(event.target as Node)) {
+        setIsCurrencyOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleCurrencyChange = async (currency: string) => {
+    setIsUpdating(true);
+    try {
+      await setPreferredCurrency(currency, user?.uid);
+      setSelectedCurrency(currency);
+      setIsCurrencyOpen(false);
+      
+      // Trigger a page refresh to update all currency displays
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating currency preference:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
 
   return (
@@ -39,6 +85,54 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         {/* Right side - Actions and user */}
         <div className="flex items-center space-x-4">
+          {/* Currency Selector */}
+          <div className="relative" ref={currencyRef}>
+            <button
+              onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
+              disabled={isUpdating}
+              className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="text-sm font-medium">
+                {currencies.find(c => c.code === selectedCurrency)?.symbol || '$'}
+              </span>
+              <span className="text-sm text-gray-700">
+                {selectedCurrency}
+              </span>
+              {isUpdating ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              ) : (
+                <svg
+                  className={`w-4 h-4 text-gray-400 transition-transform ${isCurrencyOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              )}
+            </button>
+
+            {isCurrencyOpen && (
+              <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 rounded-md shadow-lg z-50">
+                <div className="py-1">
+                  {currencies.map((currency) => (
+                    <button
+                      key={currency.code}
+                      onClick={() => handleCurrencyChange(currency.code)}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center space-x-3 ${
+                        selectedCurrency === currency.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                      }`}
+                    >
+                      <span className="font-medium">{currency.symbol}</span>
+                      <span>{currency.code}</span>
+                      <span className="text-gray-500 text-xs">{currency.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Action icons */}
           <div className="flex items-center space-x-3">
             <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -66,43 +160,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </button>
           </div>
 
-          {/* Currency selector */}
-          <div className="relative">
-            <button
-              onClick={() => setIsCurrencyOpen(!isCurrencyOpen)}
-              className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <span className="text-sm font-medium text-gray-900">
-                {selectedCurrency} {currencies.find(c => c.code === selectedCurrency)?.symbol}
-              </span>
-              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {isCurrencyOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                {currencies.map((currency) => (
-                  <button
-                    key={currency.code}
-                    onClick={() => {
-                      setSelectedCurrency(currency.code);
-                      setIsCurrencyOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors ${
-                      selectedCurrency === currency.code ? "bg-blue-50 text-blue-700" : "text-gray-900"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{currency.code}</span>
-                      <span className="text-sm text-gray-500">{currency.symbol}</span>
-                    </div>
-                    <div className="text-xs text-gray-500">{currency.name}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* User profile */}
           <div className="flex items-center space-x-3">

@@ -34,7 +34,7 @@ export function useAssetSheets(userId: string) {
   // Function to load sections for a specific sheet
   const loadSectionsForSheet = async (sheetId: string): Promise<AssetSection[]> => {
     try {
-      const sectionsRef = collection(db, 'assetSections');
+      const sectionsRef = collection(db, `users/${userId}/sections`);
       const q = query(
         sectionsRef,
         where('sheetId', '==', sheetId)
@@ -43,12 +43,17 @@ export function useAssetSheets(userId: string) {
       
       const snapshot = await getDocs(q);
       
-      const sections = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt as Timestamp,
-        updatedAt: doc.data().updatedAt as Timestamp,
-      })) as AssetSection[];
+      const sections = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Remove the internal id field to avoid conflicts
+        const { id: internalId, ...dataWithoutInternalId } = data;
+        return {
+          id: doc.id, // Always use Firestore document ID as the primary ID
+          ...dataWithoutInternalId,
+          createdAt: data.createdAt as Timestamp,
+          updatedAt: data.updatedAt as Timestamp,
+        };
+      }) as AssetSection[];
       
       // Sort by order on the client side
       const sortedSections = sections.sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -75,11 +80,8 @@ export function useAssetSheets(userId: string) {
       try {
         
         // Get sheets
-        const sheetsRef = collection(db, 'assetSheets');
-        const sheetsQuery = query(
-          sheetsRef,
-          where('userId', '==', userId)
-        );
+        const sheetsRef = collection(db, `users/${userId}/sheets`);
+        const sheetsQuery = query(sheetsRef);
         
         const sheetsSnapshot = await getDocs(sheetsQuery);
         const sheetsData = sheetsSnapshot.docs.map(doc => ({
@@ -88,6 +90,7 @@ export function useAssetSheets(userId: string) {
           createdAt: doc.data().createdAt as Timestamp,
           updatedAt: doc.data().updatedAt as Timestamp,
         })) as AssetSheet[];
+        
         
         // Sort by order on the client side
         const sortedSheets = sheetsData.sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -122,13 +125,10 @@ export function useAssetSheets(userId: string) {
     loadSheetsWithSections();
 
     // Set up real-time listeners for both sheets and sections
-    const sheetsRef = collection(db, 'assetSheets');
-    const sheetsQuery = query(
-      sheetsRef,
-      where('userId', '==', userId)
-    );
+    const sheetsRef = collection(db, `users/${userId}/sheets`);
+    const sheetsQuery = query(sheetsRef);
 
-    const sectionsRef = collection(db, 'assetSections');
+    const sectionsRef = collection(db, `users/${userId}/sections`);
     // Note: We don't actually use this query, it was just for setup
     // const sectionsQuery = query(
     //   sectionsRef,
@@ -136,7 +136,6 @@ export function useAssetSheets(userId: string) {
     // );
 
     let sheetsUnsubscribe: (() => void) | null = null;
-    let sectionsUnsubscribe: (() => void) | null = null;
 
     const setupListeners = () => {
       // Listen to sheets changes
@@ -159,7 +158,6 @@ export function useAssetSheets(userId: string) {
     return () => {
       isMounted = false;
       if (sheetsUnsubscribe) sheetsUnsubscribe();
-      if (sectionsUnsubscribe) sectionsUnsubscribe();
     };
   }, [userId, refreshTrigger]);
 
@@ -174,7 +172,7 @@ export function useAssetSheets(userId: string) {
         updatedAt: Timestamp.now(),
       };
 
-      const docRef = await addDoc(collection(db, 'assetSheets'), newSheet);
+      const docRef = await addDoc(collection(db, `users/${userId}/sheets`), newSheet);
       return docRef.id;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create sheet');
@@ -184,7 +182,7 @@ export function useAssetSheets(userId: string) {
 
   const updateSheet = async (sheetId: string, updates: Partial<AssetSheet>) => {
     try {
-      const sheetRef = doc(db, 'assetSheets', sheetId);
+      const sheetRef = doc(db, `users/${userId}/sheets`, sheetId);
       await updateDoc(sheetRef, {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -197,7 +195,7 @@ export function useAssetSheets(userId: string) {
 
   const deleteSheet = async (sheetId: string) => {
     try {
-      await deleteDoc(doc(db, 'assetSheets', sheetId));
+      await deleteDoc(doc(db, `users/${userId}/sheets`, sheetId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete sheet');
       throw err;
@@ -220,7 +218,7 @@ export function useAssetSheets(userId: string) {
         updatedAt: Timestamp.now(),
       };
 
-      const docRef = await addDoc(collection(db, 'assetSections'), newSection);
+      const docRef = await addDoc(collection(db, `users/${userId}/sections`), newSection);
       
       // Force a refresh of the sheets data to show the new section immediately
       setRefreshTrigger(prev => prev + 1);
@@ -235,7 +233,7 @@ export function useAssetSheets(userId: string) {
 
   const updateSection = async (sectionId: string, updates: UpdateAssetSectionInput) => {
     try {
-      const sectionRef = doc(db, 'assetSections', sectionId);
+      const sectionRef = doc(db, `users/${userId}/sections`, sectionId);
       await updateDoc(sectionRef, {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -251,7 +249,7 @@ export function useAssetSheets(userId: string) {
 
   const deleteSection = async (sectionId: string) => {
     try {
-      await deleteDoc(doc(db, 'assetSections', sectionId));
+      await deleteDoc(doc(db, `users/${userId}/sections`, sectionId));
       
       // Trigger refresh to show section removal
       setRefreshTrigger(prev => prev + 1);
@@ -274,7 +272,7 @@ export function useAssetSheets(userId: string) {
   };
 }
 
-export function useAssetSummary(sheetId: string) {
+export function useAssetSummary(sheetId: string, userId: string) {
   const [summary, setSummary] = useState<AssetSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -291,7 +289,7 @@ export function useAssetSummary(sheetId: string) {
         setLoading(true);
         
         // Get all sections for this sheet
-        const sectionsRef = collection(db, 'assetSections');
+        const sectionsRef = collection(db, `users/${userId}/sections`);
         const sectionsQuery = query(
           sectionsRef,
           where('sheetId', '==', sheetId)
@@ -304,7 +302,7 @@ export function useAssetSummary(sheetId: string) {
         })) as AssetSection[];
 
         // Get all assets for these sections
-        const assetsRef = collection(db, 'assets');
+        const assetsRef = collection(db, `users/${userId}/assets`);
         const sectionIds = sections.map(s => s.id);
         
         if (sectionIds.length === 0) {
@@ -401,7 +399,7 @@ export function useAssetSummary(sheetId: string) {
     };
 
     calculateSummary();
-  }, [sheetId]);
+  }, [sheetId, userId]);
 
   return { summary, loading };
 }

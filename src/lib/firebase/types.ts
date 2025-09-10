@@ -407,6 +407,7 @@ export interface CreateAssetInput {
   currentPrice?: number;
   currentValue: number;
   costBasis: number;
+  sectionId: string;
   metadata: Partial<AssetMetadata>;
 }
 

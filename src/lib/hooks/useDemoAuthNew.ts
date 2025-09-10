@@ -17,9 +17,11 @@ const createDemoUserObject = (): User => {
     uid: DEMO_USER_ID,
     email: demoInfo.email,
     displayName: demoInfo.displayName,
-    photoURL: demoInfo.photoURL,
+    photoURL: null,
     emailVerified: true,
     isAnonymous: false,
+    phoneNumber: null,
+    providerId: 'demo',
     metadata: {
       creationTime: new Date().toISOString(),
       lastSignInTime: new Date().toISOString()

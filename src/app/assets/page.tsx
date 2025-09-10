@@ -4,9 +4,17 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { clearDuplicatesFromConsole } from '@/lib/firebase/clearDuplicates';
 import { useAssetSheets, useAssetSummary } from '@/lib/hooks/useAssetSheets';
-import { useSectionAssets } from '@/lib/hooks/useSectionAssets';
 import { useDemoAssetSheets, useDemoAssetSummary, useDemoSectionAssets } from '@/lib/hooks/useDemoAssets';
 import { AssetSheet, AssetSection, Asset, CreateAssetInput, CreateAssetSheetInput, CreateAssetSectionInput } from '@/lib/firebase/types';
+import { createAsset } from '@/lib/firebase/firebaseUtils';
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  where,
+  onSnapshot 
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
 import { config } from '@/lib/config';
 import { DEMO_USER_ID } from '@/lib/firebase/demoUserSetup';
 import SummaryBar from '@/components/assets/SummaryBar';
@@ -58,7 +66,7 @@ export default function AssetsPage() {
     deleteSection,
   } = useAssetSheets(effectiveUserId);
 
-  const { summary, loading: summaryLoading } = useAssetSummary(activeSheetId);
+  const { summary, loading: summaryLoading } = useAssetSummary(activeSheetId, effectiveUserId);
 
   // Use demo mode if:
   // 1. No user and demo mode is enabled, OR  
@@ -73,7 +81,72 @@ export default function AssetsPage() {
     }
   }, []);
 
-  
+  // Custom hook to fetch assets for all sections
+  const useAssetsForSections = (sections: AssetSection[], userId: string) => {
+    const [assetsBySection, setAssetsBySection] = useState<{ [sectionId: string]: Asset[] }>({});
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+      if (!sections.length || !userId) {
+        setAssetsBySection({});
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      // Set up real-time listeners for each section
+      const unsubscribeFunctions: (() => void)[] = [];
+      const newAssetsBySection: { [sectionId: string]: Asset[] } = {};
+
+      sections.forEach((section) => {
+        const assetsRef = collection(db, `users/${userId}/assets`);
+        const q = query(
+          assetsRef,
+          where('sectionId', '==', section.id)
+        );
+
+        const unsubscribe = onSnapshot(q, 
+          (snapshot) => {
+            try {
+              const assets = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt,
+                updatedAt: doc.data().updatedAt,
+              })) as Asset[];
+
+              newAssetsBySection[section.id] = assets;
+              
+              // Update state with all sections' assets
+              setAssetsBySection({ ...newAssetsBySection });
+              setLoading(false);
+            } catch (err) {
+              console.error(`Error processing assets for section ${section.id}:`, err);
+              setError(err instanceof Error ? err.message : 'Error processing assets');
+              setLoading(false);
+            }
+          },
+          (err) => {
+            console.error(`Firebase error for section ${section.id}:`, err);
+            setError(err.message);
+            setLoading(false);
+          }
+        );
+
+        unsubscribeFunctions.push(unsubscribe);
+      });
+
+      // Cleanup function
+      return () => {
+        unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+      };
+    }, [sections, userId]);
+
+    return { assetsBySection, loading, error };
+  };
   
   // Always use Firebase data for persistence, even in demo mode
   const currentSheets = sheets;
@@ -81,6 +154,7 @@ export default function AssetsPage() {
   const currentSheetsError = sheetsError;
   const currentSummary = summary;
   const currentSummaryLoading = summaryLoading;
+
   
 
   // Get active sheet
@@ -98,14 +172,8 @@ export default function AssetsPage() {
     return sections;
   }, [activeSheet]);
 
-  // Get assets by section
-  const assetsBySection = useMemo(() => {
-    const result: { [sectionId: string]: Asset[] } = {};
-    sections.forEach(section => {
-      result[section.id] = section.assets || [];
-    });
-    return result;
-  }, [sections]);
+  // Get assets by section using the new hook
+  const { assetsBySection, loading: assetsLoading, error: assetsError } = useAssetsForSections(sections, effectiveUserId);
 
   // Set active sheet when sheets load
   useEffect(() => {
@@ -249,10 +317,17 @@ export default function AssetsPage() {
     setIsAddAssetModalOpen(true);
   };
 
-  const handleCreateAsset = async (input: CreateAssetInput & { sectionId: string }) => {
+  const handleCreateAsset = async (input: CreateAssetInput) => {
     try {
-      // This would be handled by the useSectionAssets hook
-      // For now, we'll just close the modal
+      // Use the createAsset function from firebaseUtils
+      const result = await createAsset(effectiveUserId, input);
+      
+      if (result.success) {
+        setIsAddAssetModalOpen(false);
+        // The useAssetsForSections hook will automatically refresh and show the new asset
+      } else {
+        console.error('Error creating asset:', result.error);
+      }
     } catch (error) {
       console.error('Error creating asset:', error);
     }
@@ -274,7 +349,7 @@ export default function AssetsPage() {
   };
 
   // Loading state
-  if (currentSheetsLoading) {
+  if (currentSheetsLoading || assetsLoading) {
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -412,7 +487,7 @@ export default function AssetsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-green-800">Demo User Active</h3>
-              <p className="text-sm text-green-600">You're signed in as a demo user. All changes will be saved to the database.</p>
+              <p className="text-sm text-green-600">You&apos;re signed in as a demo user. All changes will be saved to the database.</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -448,7 +523,7 @@ export default function AssetsPage() {
         onEditAsset={handleEditAsset}
         onDeleteAsset={handleDeleteAsset}
         onAddSection={handleAddSection}
-        loading={currentSheetsLoading}
+        loading={currentSheetsLoading || assetsLoading}
         isAuthenticated={Boolean(user || isDemoUser)}
       />
 

@@ -34,6 +34,8 @@ const createDemoUserObject = (): User => {
     photoURL: null,
     emailVerified: true,
     isAnonymous: false,
+    phoneNumber: null,
+    providerId: 'demo',
     metadata: {
       creationTime: new Date().toISOString(),
       lastSignInTime: new Date().toISOString()

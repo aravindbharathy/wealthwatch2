@@ -28,11 +28,51 @@ users/{userId}/
 │   ├── numberFormat: string               // e.g. '1,234.56'
 │   ├── notifications: object
 │   └── riskTolerance: string              // e.g. 'conservative', 'moderate', 'aggressive'
-└── settings/
-    ├── theme: string                      // e.g. 'light' or 'dark'
-    ├── language: string
-    ├── privacy: object
-    └── dataRetention: number              // in months
+├── settings/
+│   ├── theme: string                      // e.g. 'light' or 'dark'
+│   ├── language: string
+│   ├── privacy: object
+│   └── dataRetention: number              // in months
+├── sheets/                                // Asset organization sheets
+│   └── {sheetId}/
+│       ├── name: string
+│       ├── description?: string
+│       ├── isActive: boolean
+│       ├── order: number
+│       ├── createdAt: timestamp
+│       └── updatedAt: timestamp
+├── sections/                              // Asset sections within sheets
+│   └── {sectionId}/
+│       ├── name: string
+│       ├── description?: string
+│       ├── sheetId: string                // Reference to parent sheet
+│       ├── isExpanded: boolean
+│       ├── order: number
+│       ├── summary: object                // Calculated summary data
+│       ├── createdAt: timestamp
+│       └── updatedAt: timestamp
+└── assets/                                // Individual assets
+    └── {assetId}/
+        ├── name: string
+        ├── type: string
+        ├── sectionId: string              // Reference to parent section
+        ├── symbol?: string
+        ├── exchange?: string
+        ├── currency: string
+        ├── quantity: number
+        ├── currentPrice?: number
+        ├── currentValue: number
+        ├── costBasis: number
+        ├── avgCost?: number
+        ├── valueByDate: array
+        ├── transactions: array
+        ├── totalReturn: number
+        ├── accountMapping: object
+        ├── cashFlow: array
+        ├── metadata: object
+        ├── performance: object
+        ├── createdAt: timestamp
+        └── updatedAt: timestamp
 ```
 
 ***
@@ -112,7 +152,7 @@ users/{userId}/assets/{assetId}
 
 ***
 
-### 3. Debts Collection
+### 2. Debts Collection
 
 ```typescript
 users/{userId}/debts/{debtId}
@@ -161,7 +201,7 @@ users/{userId}/debts/{debtId}
 
 ***
 
-### 4. Accounts Collection
+### 3. Accounts Collection
 
 ```typescript
 users/{userId}/accounts/{accountId}
@@ -236,7 +276,7 @@ users/{userId}/accounts/{accountId}
 
 ***
 
-### 5. Portfolio Analytics Collection
+### 4. Portfolio Analytics Collection
 
 ```typescript
 users/{userId}/analytics/{date}

@@ -7,8 +7,8 @@ export async function clearDuplicateDemoData() {
   
   try {
     // Clear duplicate asset sheets
-    const sheetsRef = collection(db, 'assetSheets');
-    const sheetsQuery = query(sheetsRef, where('userId', '==', DEMO_USER_ID));
+    const sheetsRef = collection(db, `users/${DEMO_USER_ID}/sheets`);
+    const sheetsQuery = query(sheetsRef);
     const sheetsSnapshot = await getDocs(sheetsQuery);
     
     
@@ -28,12 +28,12 @@ export async function clearDuplicateDemoData() {
     
     // Delete duplicate sheets
     for (const docId of duplicateSheets) {
-      await deleteDoc(doc(db, 'assetSheets', docId));
+      await deleteDoc(doc(db, `users/${DEMO_USER_ID}/sheets`, docId));
     }
     
     // Clear duplicate asset sections
-    const sectionsRef = collection(db, 'assetSections');
-    const sectionsQuery = query(sectionsRef, where('userId', '==', DEMO_USER_ID));
+    const sectionsRef = collection(db, `users/${DEMO_USER_ID}/sections`);
+    const sectionsQuery = query(sectionsRef);
     const sectionsSnapshot = await getDocs(sectionsQuery);
     
     
@@ -53,12 +53,12 @@ export async function clearDuplicateDemoData() {
     
     // Delete duplicate sections
     for (const docId of duplicateSections) {
-      await deleteDoc(doc(db, 'assetSections', docId));
+      await deleteDoc(doc(db, `users/${DEMO_USER_ID}/sections`, docId));
     }
     
     // Clear duplicate assets
-    const assetsRef = collection(db, 'assets');
-    const assetsQuery = query(assetsRef, where('userId', '==', DEMO_USER_ID));
+    const assetsRef = collection(db, `users/${DEMO_USER_ID}/assets`);
+    const assetsQuery = query(assetsRef);
     const assetsSnapshot = await getDocs(assetsQuery);
     
     
@@ -78,7 +78,7 @@ export async function clearDuplicateDemoData() {
     
     // Delete duplicate assets
     for (const docId of duplicateAssets) {
-      await deleteDoc(doc(db, 'assets', docId));
+      await deleteDoc(doc(db, `users/${DEMO_USER_ID}/assets`, docId));
     }
     
     

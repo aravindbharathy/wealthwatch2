@@ -18,19 +18,19 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 
-export function useSectionAssets(sectionId: string) {
+export function useSectionAssets(sectionId: string, userId: string) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sectionId) {
+    if (!sectionId || !userId) {
       setLoading(false);
       return;
     }
 
     try {
-      const assetsRef = collection(db, 'assets');
+      const assetsRef = collection(db, `users/${userId}/assets`);
       const q = query(
         assetsRef,
         where('sectionId', '==', sectionId)
@@ -76,7 +76,7 @@ export function useSectionAssets(sectionId: string) {
       setError('Error connecting to database');
       setLoading(false);
     }
-  }, [sectionId]);
+  }, [sectionId, userId]);
 
   const createAsset = async (input: CreateAssetInput & { sectionId: string }) => {
     try {
@@ -100,7 +100,7 @@ export function useSectionAssets(sectionId: string) {
         updatedAt: Timestamp.now(),
       };
 
-      const docRef = await addDoc(collection(db, 'assets'), newAsset);
+      const docRef = await addDoc(collection(db, `users/${userId}/assets`), newAsset);
       return docRef.id;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create asset');
@@ -110,7 +110,7 @@ export function useSectionAssets(sectionId: string) {
 
   const updateAsset = async (assetId: string, updates: Partial<Asset>) => {
     try {
-      const assetRef = doc(db, 'assets', assetId);
+      const assetRef = doc(db, `users/${userId}/assets`, assetId);
       await updateDoc(assetRef, {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -123,7 +123,7 @@ export function useSectionAssets(sectionId: string) {
 
   const deleteAsset = async (assetId: string) => {
     try {
-      await deleteDoc(doc(db, 'assets', assetId));
+      await deleteDoc(doc(db, `users/${userId}/assets`, assetId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete asset');
       throw err;
@@ -133,7 +133,7 @@ export function useSectionAssets(sectionId: string) {
   const reorderAssets = async (assetIds: string[]) => {
     try {
       const updatePromises = assetIds.map((assetId, index) => {
-        const assetRef = doc(db, 'assets', assetId);
+        const assetRef = doc(db, `users/${userId}/assets`, assetId);
         return updateDoc(assetRef, {
           order: index,
           updatedAt: Timestamp.now(),

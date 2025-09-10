@@ -93,11 +93,10 @@ export const seedDemoData = async (): Promise<void> => {
     for (const sheet of sheets) {
       const sheetData = {
         ...sheet,
-        userId: DEMO_USER_ID,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
-      const sheetRef = doc(collection(db, 'assetSheets'));
+      const sheetRef = doc(collection(db, `users/${DEMO_USER_ID}/sheets`));
       batch.set(sheetRef, sheetData);
       if (sheet.id) {
         sheetRefs[sheet.id] = sheetRef;
@@ -113,7 +112,7 @@ export const seedDemoData = async (): Promise<void> => {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
-      const sectionRef = doc(collection(db, 'assetSections'));
+      const sectionRef = doc(collection(db, `users/${DEMO_USER_ID}/sections`));
       batch.set(sectionRef, sectionData);
       if (section.id) {
         sectionRefs[section.id] = sectionRef;
@@ -143,8 +142,7 @@ export const seedDemoData = async (): Promise<void> => {
 export const checkDemoDataExists = async (): Promise<boolean> => {
   try {
     const sheetsQuery = query(
-      collection(db, 'assetSheets'),
-      where('userId', '==', DEMO_USER_ID)
+      collection(db, `users/${DEMO_USER_ID}/sheets`)
     );
     const sheetsSnapshot = await getDocs(sheetsQuery);
     return !sheetsSnapshot.empty;
@@ -183,54 +181,57 @@ export const initializeDemoUser = async (): Promise<void> => {
 // Clear demo data (for testing/reset purposes)
 export const clearDemoData = async (): Promise<void> => {
   try {
-    const batch = writeBatch(db);
+    console.log('Starting to clear all demo user data...');
+    
+    // Clear all assets first
+    const assetsQuery = query(
+      collection(db, `users/${DEMO_USER_ID}/assets`)
+    );
+    const assetsSnapshot = await getDocs(assetsQuery);
+    console.log(`Found ${assetsSnapshot.docs.length} assets to delete`);
+    
+    const batch1 = writeBatch(db);
+    for (const assetDoc of assetsSnapshot.docs) {
+      batch1.delete(assetDoc.ref);
+    }
+    if (assetsSnapshot.docs.length > 0) {
+      await batch1.commit();
+      console.log('Assets deleted successfully');
+    }
 
-    // Get all demo sheets
+    // Clear all sections
+    const sectionsQuery = query(
+      collection(db, `users/${DEMO_USER_ID}/sections`)
+    );
+    const sectionsSnapshot = await getDocs(sectionsQuery);
+    console.log(`Found ${sectionsSnapshot.docs.length} sections to delete`);
+    
+    const batch2 = writeBatch(db);
+    for (const sectionDoc of sectionsSnapshot.docs) {
+      batch2.delete(sectionDoc.ref);
+    }
+    if (sectionsSnapshot.docs.length > 0) {
+      await batch2.commit();
+      console.log('Sections deleted successfully');
+    }
+
+    // Clear all sheets
     const sheetsQuery = query(
-      collection(db, 'assetSheets'),
-      where('userId', '==', DEMO_USER_ID)
+      collection(db, `users/${DEMO_USER_ID}/sheets`)
     );
     const sheetsSnapshot = await getDocs(sheetsQuery);
+    console.log(`Found ${sheetsSnapshot.docs.length} sheets to delete`);
     
+    const batch3 = writeBatch(db);
     for (const sheetDoc of sheetsSnapshot.docs) {
-      batch.delete(sheetDoc.ref);
+      batch3.delete(sheetDoc.ref);
+    }
+    if (sheetsSnapshot.docs.length > 0) {
+      await batch3.commit();
+      console.log('Sheets deleted successfully');
     }
 
-    // Get all demo sections
-    let sectionsSnapshot;
-    const sheetIds = sheetsSnapshot.docs.map(doc => doc.id).filter(id => id && id.trim() !== '');
-    if (sheetIds.length > 0 && sheetIds.length <= 10) { // Firestore 'in' limit is 10
-      const sectionsQuery = query(
-        collection(db, 'assetSections'),
-        where('sheetId', 'in', sheetIds)
-      );
-      sectionsSnapshot = await getDocs(sectionsQuery);
-    } else {
-      sectionsSnapshot = { docs: [] };
-    }
-    
-    for (const sectionDoc of sectionsSnapshot.docs) {
-      batch.delete(sectionDoc.ref);
-    }
-
-    // Get all demo assets
-    let assetsSnapshot;
-    const sectionIds = sectionsSnapshot.docs.map(doc => doc.id).filter(id => id && id.trim() !== '');
-    if (sectionIds.length > 0 && sectionIds.length <= 10) { // Firestore 'in' limit is 10
-      const assetsQuery = query(
-        collection(db, 'assets'),
-        where('sectionId', 'in', sectionIds)
-      );
-      assetsSnapshot = await getDocs(assetsQuery);
-    } else {
-      assetsSnapshot = { docs: [] };
-    }
-    
-    for (const assetDoc of assetsSnapshot.docs) {
-      batch.delete(assetDoc.ref);
-    }
-
-    await batch.commit();
+    console.log('All demo user data cleared successfully!');
   } catch (error) {
     console.error('Error clearing demo data:', error);
     throw error;
