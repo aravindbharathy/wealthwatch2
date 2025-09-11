@@ -63,10 +63,10 @@ export default function SectionItem({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Section Header */}
       <div 
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
+        className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
         onClick={() => onToggle(section.id)}
       >
         <div className="flex items-center space-x-3">
@@ -152,7 +152,7 @@ export default function SectionItem({
       {section.isExpanded && (
         <div className="border-t border-gray-200">
           {/* Asset Table */}
-          <div className="p-4">
+          <div className="p-2">
             <AssetTable
               assets={assets}
               onEditAsset={onEditAsset}
@@ -164,7 +164,7 @@ export default function SectionItem({
 
           {/* Add Asset Button */}
           {isAuthenticated && (
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+            <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
               <button
                 onClick={() => onAddAsset(section.id)}
                 className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"

@@ -141,10 +141,9 @@ export function useAssetSheets(userId: string) {
       // Listen to sheets changes - only reload if there are actual changes
       sheetsUnsubscribe = onSnapshot(sheetsQuery, 
         async (snapshot) => {
-          // Only reload if there are actual changes to sheets (not sections)
+          // Only reload if there are actual changes to sheets
           const hasSheetChanges = snapshot.docChanges().some(change => 
-            change.type === 'added' || change.type === 'removed' || 
-            (change.type === 'modified' && change.doc.id.startsWith('sheet'))
+            change.type === 'added' || change.type === 'removed' || change.type === 'modified'
           );
           
           if (hasSheetChanges) {
@@ -190,12 +189,29 @@ export function useAssetSheets(userId: string) {
 
   const updateSheet = async (sheetId: string, updates: Partial<AssetSheet>) => {
     try {
+      // Optimistically update local state
+      setSheets(prevSheets => 
+        prevSheets.map(sheet => 
+          sheet.id === sheetId 
+            ? { ...sheet, ...updates, updatedAt: Timestamp.now() }
+            : sheet
+        )
+      );
+
       const sheetRef = doc(db, `users/${userId}/sheets`, sheetId);
       await updateDoc(sheetRef, {
         ...updates,
         updatedAt: Timestamp.now(),
       });
     } catch (err) {
+      // Revert optimistic update on error
+      setSheets(prevSheets => 
+        prevSheets.map(sheet => 
+          sheet.id === sheetId 
+            ? { ...sheet, updatedAt: Timestamp.now() }
+            : sheet
+        )
+      );
       setError(err instanceof Error ? err.message : 'Failed to update sheet');
       throw err;
     }

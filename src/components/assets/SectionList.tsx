@@ -32,7 +32,7 @@ export default function SectionList({
 }: SectionListProps) {
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2">
         {[...Array(2)].map((_, i) => (
           <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="animate-pulse">
@@ -82,7 +82,7 @@ export default function SectionList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Sections */}
       {sections.map((section) => (
         <SectionItem
@@ -102,7 +102,7 @@ export default function SectionList({
 
       {/* Add Section Button */}
       {isAuthenticated && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
           <button
             onClick={onAddSection}
             className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"

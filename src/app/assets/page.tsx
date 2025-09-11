@@ -474,87 +474,195 @@ export default function AssetsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Demo Mode Toggle */}
-      {!user && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-blue-800">Demo Mode</h3>
-              <p className="text-sm text-blue-600">
-                {isDemoUser 
-                  ? "You're signed in as a demo user with persistent data. Sign in with Google to use your real data."
-                  : "You're viewing sample data. Sign in to use your real data or try the demo user."
-                }
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {!isDemoUser && (
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Main Content Area */}
+      <div className="flex-1 space-y-6 overflow-visible">
+        {/* Demo Mode Toggle */}
+        {!user && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-blue-800">Demo Mode</h3>
+                <p className="text-sm text-blue-600">
+                  {isDemoUser 
+                    ? "You're signed in as a demo user with persistent data. Sign in with Google to use your real data."
+                    : "You're viewing sample data. Sign in to use your real data or try the demo user."
+                  }
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {!isDemoUser && (
+                  <button
+                    onClick={() => {
+                      signInAsDemo();
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Sign in as Demo User
+                  </button>
+                )}
                 <button
-                  onClick={() => {
-                    signInAsDemo();
-                  }}
+                  onClick={() => setDemoMode(!demoMode)}
                   className="text-sm text-blue-600 hover:text-blue-800 underline"
                 >
-                  Sign in as Demo User
+                  {demoMode ? 'Disable Demo' : 'Enable Demo'}
                 </button>
-              )}
-              <button
-                onClick={() => setDemoMode(!demoMode)}
-                className="text-sm text-blue-600 hover:text-blue-800 underline"
-              >
-                {demoMode ? 'Disable Demo' : 'Enable Demo'}
-              </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Demo User Indicator */}
-      {isDemoUser && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-green-800">Demo User Active</h3>
-              <p className="text-sm text-green-600">You&apos;re signed in as a demo user. All changes will be saved to the database.</p>
+        {/* Demo User Indicator */}
+        {isDemoUser && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-green-800">Demo User Active</h3>
+                <p className="text-sm text-green-600">You&apos;re signed in as a demo user. All changes will be saved to the database.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Demo User
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Demo User
+          </div>
+        )}
+
+        {/* Summary Bar */}
+        <SummaryBar summary={currentSummary} loading={currentSummaryLoading} />
+
+        {/* Sheet Tabs */}
+        <SheetTabs
+          sheets={currentSheets}
+          activeSheetId={activeSheetId}
+          onSheetChange={handleSheetChange}
+          onAddSheet={handleAddSheet}
+          onRenameSheet={handleRenameSheet}
+          onDeleteSheet={handleDeleteSheet}
+          isAuthenticated={Boolean(user || isDemoUser)}
+        />
+
+        {/* Section List */}
+        <SectionList
+          sections={sections}
+          assetsBySection={assetsBySection}
+          onToggleSection={handleToggleSection}
+          onAddAsset={handleAddAsset}
+          onEditSection={handleEditSection}
+          onDeleteSection={handleDeleteSection}
+          onEditAsset={handleEditAsset}
+          onDeleteAsset={handleDeleteAsset}
+          onAddSection={handleAddSection}
+          loading={currentSheetsLoading && currentSheets.length === 0}
+          isAuthenticated={Boolean(user || isDemoUser)}
+        />
+      </div>
+
+      {/* Right Sidebar */}
+      <div className="w-full lg:w-80 space-y-6">
+        {/* Complete Accounts Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-900">COMPLETE ACCOUNTS</h3>
+            <button className="text-xs text-gray-500 hover:text-gray-700">Dismiss</button>
+          </div>
+          
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 mb-4">
+            <h4 className="font-medium text-gray-900 mb-2">Complete your financial picture.</h4>
+            <p className="text-sm text-gray-600 mb-4">
+              To get a complete sense of your net worth, add all the accounts that make up your full financial picture.
+            </p>
+            
+            {/* Bank Logos */}
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">AM</span>
+              </div>
+              <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">BA</span>
+              </div>
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">CH</span>
+              </div>
+              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">WF</span>
+              </div>
+            </div>
+            
+            <button className="w-full bg-gray-900 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-gray-800 transition-colors">
+              Add more accounts
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-sm font-medium text-gray-900 mb-4">SUMMARY</h3>
+          
+          <p className="text-sm text-gray-600 mb-4">
+            This is how your net worth is calculated. Make sure all of your accounts are connected for an accurate summary.
+          </p>
+          
+          <div className="space-y-3">
+            {/* Assets */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="w-2 h-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="text-sm text-gray-700">Assets</span>
+                <span className="text-xs text-gray-500">16 accounts</span>
+              </div>
+              <span className="text-sm font-medium text-gray-900">
+                {currentSummary ? new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                }).format(currentSummary.totalValue) : '$0'}
+              </span>
+            </div>
+            
+            {/* Debts */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-orange-100 rounded-full flex items-center justify-center">
+                  <svg className="w-2 h-2 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="text-sm text-gray-700">Debts</span>
+                <span className="text-xs text-gray-500">10 accounts</span>
+              </div>
+              <span className="text-sm font-medium text-gray-900">$1,023,853</span>
+            </div>
+            
+            {/* Net Worth */}
+            <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <svg className="w-2 h-2 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium text-gray-700">Net Worth</span>
+                <span className="text-xs text-gray-500">Assets - Debts</span>
+              </div>
+              <span className="text-sm font-medium text-gray-900">
+                {currentSummary ? new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                }).format(currentSummary.totalValue - 1023853) : '$0'}
               </span>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Summary Bar */}
-      <SummaryBar summary={currentSummary} loading={currentSummaryLoading} />
-
-      {/* Sheet Tabs */}
-      <SheetTabs
-        sheets={currentSheets}
-        activeSheetId={activeSheetId}
-        onSheetChange={handleSheetChange}
-        onAddSheet={handleAddSheet}
-        onRenameSheet={handleRenameSheet}
-        onDeleteSheet={handleDeleteSheet}
-        isAuthenticated={Boolean(user || isDemoUser)}
-      />
-
-      {/* Section List */}
-      <SectionList
-        sections={sections}
-        assetsBySection={assetsBySection}
-        onToggleSection={handleToggleSection}
-        onAddAsset={handleAddAsset}
-        onEditSection={handleEditSection}
-        onDeleteSection={handleDeleteSection}
-        onEditAsset={handleEditAsset}
-        onDeleteAsset={handleDeleteAsset}
-        onAddSection={handleAddSection}
-        loading={currentSheetsLoading && currentSheets.length === 0}
-        isAuthenticated={Boolean(user || isDemoUser)}
-      />
+      </div>
 
       {/* Modals */}
       <AddSheetModal

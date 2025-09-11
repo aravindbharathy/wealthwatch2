@@ -83,12 +83,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
         
         {/* Main content area */}
-        <div className={`transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-0 lg:ml-16"}`}>
+        <div className={`transition-all duration-300 overflow-visible ${sidebarOpen ? "ml-64" : "ml-0 lg:ml-16"}`}>
           {/* Header */}
           <Header onMenuClick={toggleSidebar} />
           
           {/* Page content */}
-          <main className="p-6">
+          <main className="p-6 overflow-visible">
             {children}
           </main>
         </div>

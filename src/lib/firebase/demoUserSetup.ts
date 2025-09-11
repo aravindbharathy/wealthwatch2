@@ -88,7 +88,7 @@ export const seedDemoData = async (): Promise<void> => {
     const batch = writeBatch(db);
     const { sheets, sections, assets } = createSampleData();
 
-    // Create asset sheets
+    // Create asset sheets with proper ID mapping
     const sheetRefs: { [key: string]: any } = {};
     for (const sheet of sheets) {
       const sheetData = {
@@ -96,14 +96,17 @@ export const seedDemoData = async (): Promise<void> => {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
+      // Remove the id from sheetData since we'll use the Firestore document ID
+      const { id, ...sheetDataWithoutId } = sheetData;
       const sheetRef = doc(collection(db, `users/${DEMO_USER_ID}/sheets`));
-      batch.set(sheetRef, sheetData);
+      batch.set(sheetRef, sheetDataWithoutId);
+      // Map the original sample ID to the actual Firestore document ID
       if (sheet.id) {
         sheetRefs[sheet.id] = sheetRef;
       }
     }
 
-    // Create asset sections
+    // Create asset sections with proper ID mapping
     const sectionRefs: { [key: string]: any } = {};
     for (const section of sections) {
       const sectionData = {
@@ -112,14 +115,17 @@ export const seedDemoData = async (): Promise<void> => {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
+      // Remove the id from sectionData since we'll use the Firestore document ID
+      const { id, ...sectionDataWithoutId } = sectionData;
       const sectionRef = doc(collection(db, `users/${DEMO_USER_ID}/sections`));
-      batch.set(sectionRef, sectionData);
+      batch.set(sectionRef, sectionDataWithoutId);
+      // Map the original sample ID to the actual Firestore document ID
       if (section.id) {
         sectionRefs[section.id] = sectionRef;
       }
     }
 
-    // Create assets
+    // Create assets with proper ID mapping
     for (const asset of assets) {
       const assetData = {
         ...asset,
@@ -127,8 +133,10 @@ export const seedDemoData = async (): Promise<void> => {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
-      const assetRef = doc(collection(db, 'assets'));
-      batch.set(assetRef, assetData);
+      // Remove the id from assetData since we'll use the Firestore document ID
+      const { id, ...assetDataWithoutId } = assetData;
+      const assetRef = doc(collection(db, `users/${DEMO_USER_ID}/assets`));
+      batch.set(assetRef, assetDataWithoutId);
     }
 
     await batch.commit();
@@ -178,17 +186,16 @@ export const initializeDemoUser = async (): Promise<void> => {
   }
 };
 
+
 // Clear demo data (for testing/reset purposes)
 export const clearDemoData = async (): Promise<void> => {
   try {
-    console.log('Starting to clear all demo user data...');
     
     // Clear all assets first
     const assetsQuery = query(
       collection(db, `users/${DEMO_USER_ID}/assets`)
     );
     const assetsSnapshot = await getDocs(assetsQuery);
-    console.log(`Found ${assetsSnapshot.docs.length} assets to delete`);
     
     const batch1 = writeBatch(db);
     for (const assetDoc of assetsSnapshot.docs) {
@@ -196,7 +203,6 @@ export const clearDemoData = async (): Promise<void> => {
     }
     if (assetsSnapshot.docs.length > 0) {
       await batch1.commit();
-      console.log('Assets deleted successfully');
     }
 
     // Clear all sections
@@ -204,7 +210,6 @@ export const clearDemoData = async (): Promise<void> => {
       collection(db, `users/${DEMO_USER_ID}/sections`)
     );
     const sectionsSnapshot = await getDocs(sectionsQuery);
-    console.log(`Found ${sectionsSnapshot.docs.length} sections to delete`);
     
     const batch2 = writeBatch(db);
     for (const sectionDoc of sectionsSnapshot.docs) {
@@ -212,7 +217,6 @@ export const clearDemoData = async (): Promise<void> => {
     }
     if (sectionsSnapshot.docs.length > 0) {
       await batch2.commit();
-      console.log('Sections deleted successfully');
     }
 
     // Clear all sheets
@@ -220,7 +224,6 @@ export const clearDemoData = async (): Promise<void> => {
       collection(db, `users/${DEMO_USER_ID}/sheets`)
     );
     const sheetsSnapshot = await getDocs(sheetsQuery);
-    console.log(`Found ${sheetsSnapshot.docs.length} sheets to delete`);
     
     const batch3 = writeBatch(db);
     for (const sheetDoc of sheetsSnapshot.docs) {
@@ -228,15 +231,14 @@ export const clearDemoData = async (): Promise<void> => {
     }
     if (sheetsSnapshot.docs.length > 0) {
       await batch3.commit();
-      console.log('Sheets deleted successfully');
     }
 
-    console.log('All demo user data cleared successfully!');
   } catch (error) {
     console.error('Error clearing demo data:', error);
     throw error;
   }
 };
+
 
 // Get demo user info
 export const getDemoUserInfo = () => {

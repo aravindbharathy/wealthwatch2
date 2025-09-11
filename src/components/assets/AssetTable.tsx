@@ -54,13 +54,16 @@ export default function AssetTable({
     return (
       <div className="animate-pulse">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex items-center py-3 border-b border-gray-100">
-            <div className="flex items-center space-x-4 w-48">
-              <div className="w-4 h-4 bg-gray-200 rounded"></div>
-              <div className="w-32 h-4 bg-gray-200 rounded"></div>
+          <div key={i} className={`flex items-center py-2 px-3 ${
+            i < 2 ? 'border-b border-gray-100' : ''
+          }`}>
+            <div className="w-4"></div>
+            <div className="flex items-center space-x-4 flex-1">
+              <div className="w-2 h-2 bg-gray-200 rounded-full"></div>
+              <div className="flex-1 h-4 bg-gray-200 rounded"></div>
             </div>
-            <div className="flex items-center space-x-8 flex-1">
-              <div className="w-20 h-4 bg-gray-200 rounded"></div>
+            <div className="flex items-center space-x-6">
+              <div className="w-16 h-4 bg-gray-200 rounded"></div>
               <div className="w-20 h-4 bg-gray-200 rounded"></div>
               <div className="w-20 h-4 bg-gray-200 rounded"></div>
             </div>
@@ -85,70 +88,81 @@ export default function AssetTable({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-0">
       {/* Table Header */}
-      <div className="flex items-center py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-        <div className="flex items-center space-x-4 w-48">
-          <div className="w-4"></div>
-          <div className="w-32">ASSET</div>
+      <div className="flex items-center py-1 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+        <div className="w-4"></div>
+        <div className="flex items-center space-x-4 flex-1">
+          <div className="w-2"></div>
+          <div className="flex-1 text-left">
+            <div>ASSET</div>
+          </div>
         </div>
-        <div className="flex items-center space-x-8 flex-1">
-          <div className="w-20 text-center">IRR</div>
-          <div className="w-20 text-center">COST BASIS</div>
-          <div className="w-20 text-center">VALUE</div>
+        <div className="flex items-center space-x-6">
+          <div className="w-16 text-center">IRR</div>
+          <div className="w-20 text-right">COST BASIS</div>
+          <div className="w-20 text-right">VALUE</div>
         </div>
+        {/* Actions space to match data rows - ml-4 (16px) + 2 buttons with p-1 (8px each) + space-x-1 (4px) = 36px total */}
+        {isAuthenticated && (
+          <div className="ml-4 flex items-center space-x-1">
+            <div className="w-6 h-6"></div>
+            <div className="w-6 h-6"></div>
+          </div>
+        )}
       </div>
 
       {/* Asset Rows */}
-      {assets.map((asset) => {
+      {assets.map((asset, index) => {
         const totalReturnPercent = asset.costBasis > 0 ? 
           ((asset.currentValue - asset.costBasis) / asset.costBasis) * 100 : 0;
         const dayChange = asset.performance?.dayChange || 0;
+        const isLastAsset = index === assets.length - 1;
 
         return (
           <div
             key={asset.id}
-            className="flex items-center py-3 px-4 hover:bg-gray-50 group"
+            className={`flex items-center py-2 px-3 hover:bg-gray-50 group ${
+              !isLastAsset ? 'border-b border-gray-100' : ''
+            }`}
           >
-            <div className="flex items-center space-x-4 w-48">
-              {/* Drag Handle */}
-              <div className="w-4 flex justify-center">
-                <svg className="w-3 h-3 text-gray-400 cursor-move" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
-                </svg>
-              </div>
+            {/* Drag Handle */}
+            <div className="w-4 flex justify-center">
+              <svg className="w-3 h-3 text-gray-400 cursor-move" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+              </svg>
+            </div>
 
-              {/* Asset Info */}
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                <div>
-                  <div className="font-medium text-gray-900">{asset.name}</div>
-                  {asset.symbol && (
-                    <div className="text-xs text-gray-500">{asset.symbol}</div>
-                  )}
-                </div>
+            {/* Asset Info */}
+            <div className="flex items-center space-x-4 flex-1">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <div className="flex-1 text-left">
+                <div className="font-medium text-gray-900">{asset.name}</div>
+                {asset.symbol && (
+                  <div className="text-xs text-gray-500">{asset.symbol}</div>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center space-x-8 flex-1">
+            <div className="flex items-center space-x-6">
               {/* IRR */}
-              <div className={`w-20 text-center text-sm font-medium ${
+              <div className={`w-16 text-center text-sm font-medium ${
                 totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
                 {formatPercent(totalReturnPercent)}
               </div>
 
               {/* Cost Basis */}
-              <div className="w-20 text-center text-sm font-medium text-gray-900">
+              <div className="w-20 text-right text-sm font-medium text-gray-900">
                 {formatCurrency(asset.costBasis)}
               </div>
 
               {/* Value */}
-              <div className="flex items-center justify-center space-x-2 w-20">
-                <div className="text-sm font-medium text-gray-900">
-                  {formatCurrency(asset.currentValue)}
+              <div className="w-20 text-right text-sm font-medium text-gray-900">
+                <div className="flex items-center justify-end space-x-1">
+                  {getPerformanceIcon(dayChange)}
+                  <span>{formatCurrency(asset.currentValue)}</span>
                 </div>
-                {getPerformanceIcon(dayChange)}
               </div>
 
               {/* Actions */}
