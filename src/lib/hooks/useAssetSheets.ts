@@ -21,6 +21,7 @@ import {
   where, 
   orderBy,
   onSnapshot,
+  writeBatch,
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
@@ -295,6 +296,21 @@ export function useAssetSheets(userId: string) {
 
   const deleteSection = async (sectionId: string) => {
     try {
+      // First, delete all assets in this section
+      const assetsQuery = query(
+        collection(db, `users/${userId}/assets`),
+        where('sectionId', '==', sectionId)
+      );
+      const assetsSnapshot = await getDocs(assetsQuery);
+      
+      // Delete all assets in batch
+      const batch = writeBatch(db);
+      assetsSnapshot.docs.forEach((assetDoc) => {
+        batch.delete(assetDoc.ref);
+      });
+      await batch.commit();
+      
+      // Then delete the section itself
       await deleteDoc(doc(db, `users/${userId}/sections`, sectionId));
       
       // Update local state immediately to prevent flickering

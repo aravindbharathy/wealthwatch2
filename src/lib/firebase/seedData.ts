@@ -449,6 +449,7 @@ export const createSampleAssets = (userId: string): CreateAssetInput[] => [
     currentValue: 1755.00,
     costBasis: 1500.00,
     sectionId: 'default-stocks',
+    position: 0,
     metadata: {
       tags: ['technology', 'large-cap'],
       customFields: {}
@@ -465,6 +466,7 @@ export const createSampleAssets = (userId: string): CreateAssetInput[] => [
     currentValue: 22500.00,
     costBasis: 20000.00,
     sectionId: 'default-crypto',
+    position: 0,
     metadata: {
       tags: ['cryptocurrency', 'digital-gold'],
       customFields: {}
@@ -478,6 +480,7 @@ export const createSampleAssets = (userId: string): CreateAssetInput[] => [
     currentValue: 10000.00,
     costBasis: 10000.00,
     sectionId: 'default-cash',
+    position: 0,
     metadata: {
       tags: ['emergency', 'liquid'],
       customFields: {}
@@ -491,6 +494,7 @@ export const createSampleAssets = (userId: string): CreateAssetInput[] => [
     currentValue: 500000.00,
     costBasis: 450000.00,
     sectionId: 'default-real-estate',
+    position: 0,
     metadata: {
       tags: ['real-estate', 'primary-residence'],
       address: '123 Main St, Anytown, USA',
@@ -505,6 +509,7 @@ export const createSampleAssets = (userId: string): CreateAssetInput[] => [
     currentValue: 25000.00,
     costBasis: 28000.00,
     sectionId: 'default-vehicles',
+    position: 0,
     metadata: {
       tags: ['vehicle', 'transportation'],
       model: 'Civic',

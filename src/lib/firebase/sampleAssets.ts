@@ -83,6 +83,7 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
       totalReturnPercent: 39.8,
     },
     sectionId: 'section-1',
+    position: 0,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   },
@@ -113,6 +114,7 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
       totalReturnPercent: 13.1,
     },
     sectionId: 'section-1',
+    position: 1,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   },
@@ -143,6 +145,7 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
       totalReturnPercent: 18.7,
     },
     sectionId: 'section-1',
+    position: 2,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   },
@@ -171,6 +174,7 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
       totalReturnPercent: 0,
     },
     sectionId: 'section-1',
+    position: 3,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   },
@@ -199,6 +203,7 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
       totalReturnPercent: 0,
     },
     sectionId: 'section-2',
+    position: 0,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   },
@@ -222,6 +227,7 @@ export const createSampleData = () => {
     ...asset,
     id: `asset-${timestamp}-${index + 1}`,
     sectionId: sections[0].id, // Assign all assets to the first section
+    position: index, // Add position for ordering
   }));
 
   return { sheets, sections, assets };

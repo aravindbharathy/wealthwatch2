@@ -152,7 +152,7 @@ export default function SectionItem({
       {section.isExpanded && (
         <div className="border-t border-gray-200">
           {/* Asset Table */}
-          <div className="p-2">
+          <div>
             <AssetTable
               assets={assets}
               onEditAsset={onEditAsset}

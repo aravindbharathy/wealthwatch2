@@ -47,11 +47,11 @@ export function useSectionAssets(sectionId: string, userId: string) {
               updatedAt: doc.data().updatedAt as Timestamp,
             })) as Asset[];
             
-            // Sort by createdAt on the client side
+            // Sort by position on the client side
             const sortedAssets = assetsData.sort((a, b) => {
-              const aTime = a.createdAt?.toMillis() || 0;
-              const bTime = b.createdAt?.toMillis() || 0;
-              return aTime - bTime;
+              const aPosition = a.position || 0;
+              const bPosition = b.position || 0;
+              return aPosition - bPosition;
             });
             
             setAssets(sortedAssets);
@@ -80,8 +80,12 @@ export function useSectionAssets(sectionId: string, userId: string) {
 
   const createAsset = async (input: CreateAssetInput & { sectionId: string }) => {
     try {
+      // Calculate the next position (last position + 1)
+      const nextPosition = assets.length > 0 ? Math.max(...assets.map(a => a.position || 0)) + 1 : 0;
+      
       const newAsset: Omit<Asset, 'id'> = {
         ...input,
+        position: input.position !== undefined ? input.position : nextPosition,
         valueByDate: [],
         transactions: [],
         totalReturn: input.currentValue - input.costBasis,
@@ -135,7 +139,7 @@ export function useSectionAssets(sectionId: string, userId: string) {
       const updatePromises = assetIds.map((assetId, index) => {
         const assetRef = doc(db, `users/${userId}/assets`, assetId);
         return updateDoc(assetRef, {
-          order: index,
+          position: index,
           updatedAt: Timestamp.now(),
         });
       });

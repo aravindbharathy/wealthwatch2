@@ -122,6 +122,7 @@ export interface Asset extends BaseDocument {
   metadata: AssetMetadata;
   performance: AssetPerformance;
   sectionId?: string; // Reference to the section this asset belongs to
+  position: number; // Position within the section for ordering
 }
 
 // 3. Debts Collection Types
@@ -408,6 +409,7 @@ export interface CreateAssetInput {
   currentValue: number;
   costBasis: number;
   sectionId: string;
+  position?: number; // Optional - will be calculated automatically if not provided
   metadata: Partial<AssetMetadata>;
 }
 

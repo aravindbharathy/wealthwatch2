@@ -153,7 +153,7 @@ export default function SheetTabs({
               {isAuthenticated && (onRenameSheet || (onDeleteSheet && sheets.length > 1)) && (
                 <div className="relative">
                   <button
-                    ref={(el) => (buttonRefs.current[sheet.id] = el)}
+                    ref={(el) => { buttonRefs.current[sheet.id] = el; }}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDropdownToggle(sheet.id);

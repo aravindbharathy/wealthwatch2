@@ -212,8 +212,25 @@ export const updateUser = async (userId: string, updates: Partial<User>): Promis
 
 export const createAsset = async (userId: string, assetData: CreateAssetInput): Promise<ApiResponse<Asset>> => {
   try {
+    // Calculate the next position for this section
+    let nextPosition = 0;
+    if (assetData.sectionId) {
+      const sectionAssetsQuery = query(
+        collection(db, `users/${userId}/assets`),
+        where('sectionId', '==', assetData.sectionId)
+      );
+      const sectionAssetsSnapshot = await getDocs(sectionAssetsQuery);
+      const sectionAssets = sectionAssetsSnapshot.docs.map(doc => doc.data());
+      
+      if (sectionAssets.length > 0) {
+        const maxPosition = Math.max(...sectionAssets.map(asset => asset.position || 0));
+        nextPosition = maxPosition + 1;
+      }
+    }
+
     const assetDoc = {
       ...assetData,
+      position: assetData.position ?? nextPosition,
       avgCost: assetData.quantity > 0 ? assetData.costBasis / assetData.quantity : 0,
       valueByDate: [],
       transactions: [],
@@ -250,7 +267,23 @@ export const getUserAssets = async (userId: string): Promise<ApiResponse<Asset[]
       id: doc.id,
       ...doc.data()
     })) as unknown as Asset[];
-    return { success: true, data: assets };
+    
+    // Sort by position, then by createdAt for assets without position
+    const sortedAssets = assets.sort((a, b) => {
+      const aPosition = a.position ?? Number.MAX_SAFE_INTEGER;
+      const bPosition = b.position ?? Number.MAX_SAFE_INTEGER;
+      
+      if (aPosition !== bPosition) {
+        return aPosition - bPosition;
+      }
+      
+      // If positions are equal (or both undefined), sort by creation time
+      const aTime = a.createdAt?.toMillis() || 0;
+      const bTime = b.createdAt?.toMillis() || 0;
+      return aTime - bTime;
+    });
+    
+    return { success: true, data: sortedAssets };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }

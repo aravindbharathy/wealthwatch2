@@ -103,6 +103,12 @@ export function useDemoAssetSheets() {
   };
 
   const deleteSection = async (sectionId: string) => {
+    // Remove assets from the cached demo assets
+    if (cachedDemoAssets) {
+      cachedDemoAssets = cachedDemoAssets.filter(asset => asset.sectionId !== sectionId);
+    }
+    
+    // Remove the section from sheets
     setSheets(prev => prev.map(sheet => ({
       ...sheet,
       sections: sheet.sections.filter(section => section.id !== sectionId)
@@ -205,8 +211,14 @@ export function useDemoSectionAssets(sectionId: string) {
         const { assets: sampleAssets } = createSampleData();
         // Cache the data to prevent duplicate creation
         cachedDemoAssets = sampleAssets;
-        // Filter assets for this section
-        const sectionAssets = sampleAssets.filter(asset => asset.sectionId === sectionId);
+        // Filter assets for this section and sort by position
+        const sectionAssets = sampleAssets
+          .filter(asset => asset.sectionId === sectionId)
+          .sort((a, b) => {
+            const aPosition = a.position || 0;
+            const bPosition = b.position || 0;
+            return aPosition - bPosition;
+          });
         setAssets(sectionAssets);
         setLoading(false);
         setError(null);
@@ -220,6 +232,9 @@ export function useDemoSectionAssets(sectionId: string) {
   }, [sectionId]);
 
   const createAsset = async (input: any) => {
+    // Calculate the next position for this section
+    const nextPosition = assets.length > 0 ? Math.max(...assets.map(a => a.position || 0)) + 1 : 0;
+    
     const newAsset: Asset = {
       id: `asset-${Date.now()}`,
       name: input.name,
@@ -243,6 +258,7 @@ export function useDemoSectionAssets(sectionId: string) {
           ((input.currentValue - input.costBasis) / input.costBasis) * 100 : 0,
       },
       sectionId: input.sectionId,
+      position: input.position !== undefined ? input.position : nextPosition,
       createdAt: new Date() as any,
       updatedAt: new Date() as any,
     };

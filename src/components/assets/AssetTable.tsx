@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useRef, useEffect } from 'react';
 import { Asset } from '@/lib/firebase/types';
 
 interface AssetTableProps {
@@ -19,6 +20,36 @@ export default function AssetTable({
   loading = false,
   isAuthenticated = true,
 }: AssetTableProps) {
+  const [popupState, setPopupState] = useState<{
+    isOpen: boolean;
+    assetId: string | null;
+    position: { top: number; left: number };
+  }>({
+    isOpen: false,
+    assetId: null,
+    position: { top: 0, left: 0 },
+  });
+
+  const openPopup = (assetId: string, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPopupState({
+      isOpen: true,
+      assetId,
+      position: {
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX - 120, // Position to the left of the button
+      },
+    });
+  };
+
+  const closePopup = () => {
+    setPopupState({
+      isOpen: false,
+      assetId: null,
+      position: { top: 0, left: 0 },
+    });
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -54,19 +85,15 @@ export default function AssetTable({
     return (
       <div className="animate-pulse">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className={`flex items-center py-2 px-3 ${
+          <div key={i} className={`grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-2 px-2 ${
             i < 2 ? 'border-b border-gray-100' : ''
           }`}>
-            <div className="w-4"></div>
-            <div className="flex items-center space-x-4 flex-1">
-              <div className="w-2 h-2 bg-gray-200 rounded-full"></div>
-              <div className="flex-1 h-4 bg-gray-200 rounded"></div>
-            </div>
-            <div className="flex items-center space-x-6">
-              <div className="w-16 h-4 bg-gray-200 rounded"></div>
-              <div className="w-20 h-4 bg-gray-200 rounded"></div>
-              <div className="w-20 h-4 bg-gray-200 rounded"></div>
-            </div>
+            <div></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div></div>
           </div>
         ))}
       </div>
@@ -90,26 +117,13 @@ export default function AssetTable({
   return (
     <div className="space-y-0">
       {/* Table Header */}
-      <div className="flex items-center py-1 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-        <div className="w-4"></div>
-        <div className="flex items-center space-x-4 flex-1">
-          <div className="w-2"></div>
-          <div className="flex-1 text-left">
-            <div>ASSET</div>
-          </div>
-        </div>
-        <div className="flex items-center space-x-6">
-          <div className="w-16 text-center">IRR</div>
-          <div className="w-20 text-right">COST BASIS</div>
-          <div className="w-20 text-right">VALUE</div>
-        </div>
-        {/* Actions space to match data rows - ml-4 (16px) + 2 buttons with p-1 (8px each) + space-x-1 (4px) = 36px total */}
-        {isAuthenticated && (
-          <div className="ml-4 flex items-center space-x-1">
-            <div className="w-6 h-6"></div>
-            <div className="w-6 h-6"></div>
-          </div>
-        )}
+      <div className="grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-1 px-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+        <div></div>
+        <div className="text-left">ASSET</div>
+        <div className="text-right">IRR</div>
+        <div className="text-right">COST BASIS</div>
+        <div className="text-right">VALUE</div>
+        <div></div>
       </div>
 
       {/* Asset Rows */}
@@ -122,76 +136,138 @@ export default function AssetTable({
         return (
           <div
             key={asset.id}
-            className={`flex items-center py-2 px-3 hover:bg-gray-50 group ${
+            className={`grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-2 px-2 hover:bg-gray-50 group ${
               !isLastAsset ? 'border-b border-gray-100' : ''
             }`}
           >
             {/* Drag Handle */}
-            <div className="w-4 flex justify-center">
+            <div className="flex justify-center">
               <svg className="w-3 h-3 text-gray-400 cursor-move" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
               </svg>
             </div>
 
             {/* Asset Info */}
-            <div className="flex items-center space-x-4 flex-1">
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <div className="flex-1 text-left">
-                <div className="font-medium text-gray-900">{asset.name}</div>
-                {asset.symbol && (
-                  <div className="text-xs text-gray-500">{asset.symbol}</div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-6">
-              {/* IRR */}
-              <div className={`w-16 text-center text-sm font-medium ${
-                totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {formatPercent(totalReturnPercent)}
-              </div>
-
-              {/* Cost Basis */}
-              <div className="w-20 text-right text-sm font-medium text-gray-900">
-                {formatCurrency(asset.costBasis)}
-              </div>
-
-              {/* Value */}
-              <div className="w-20 text-right text-sm font-medium text-gray-900">
-                <div className="flex items-center justify-end space-x-1">
-                  {getPerformanceIcon(dayChange)}
-                  <span>{formatCurrency(asset.currentValue)}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              {isAuthenticated && (
-                <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
-                  <button
-                    onClick={() => onEditAsset(asset.id)}
-                    className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
-                    title="Edit asset"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => onDeleteAsset(asset.id)}
-                    className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-600"
-                    title="Delete asset"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
+            <div className="text-left">
+              <div className="font-medium text-gray-900">{asset.name}</div>
+              {asset.symbol && (
+                <div className="text-xs text-gray-500">{asset.symbol}</div>
               )}
             </div>
+
+            {/* IRR */}
+            <div className={`text-right text-sm font-medium ${
+              totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
+            }`}>
+              {formatPercent(totalReturnPercent)}
+            </div>
+
+            {/* Cost Basis */}
+            <div className="text-right text-sm font-medium text-gray-900">
+              {formatCurrency(asset.costBasis)}
+            </div>
+
+            {/* Value */}
+            <div className="text-right text-sm font-medium text-gray-900">
+              <div className="flex items-center justify-end space-x-1">
+                {getPerformanceIcon(dayChange)}
+                <span>{formatCurrency(asset.currentValue)}</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            {isAuthenticated && (
+              <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => openPopup(asset.id, e)}
+                  className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
+                  title="More options"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
+      
+      {/* Popup Menu */}
+      <PopupMenu
+        isOpen={popupState.isOpen}
+        onClose={closePopup}
+        onEdit={() => popupState.assetId && onEditAsset(popupState.assetId)}
+        onDelete={() => popupState.assetId && onDeleteAsset(popupState.assetId)}
+        position={popupState.position}
+      />
     </div>
   );
 }
+
+// Popup Menu Component
+interface PopupMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  position: { top: number; left: number };
+}
+
+const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete, position }) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      ref={menuRef}
+      className="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]"
+      style={{
+        top: position.top,
+        left: position.left,
+      }}
+    >
+      <button
+        onClick={() => {
+          onEdit();
+          onClose();
+        }}
+        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+        <span>Edit</span>
+      </button>
+      <button
+        onClick={() => {
+          onDelete();
+          onClose();
+        }}
+        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+        <span>Delete</span>
+      </button>
+    </div>
+  );
+};

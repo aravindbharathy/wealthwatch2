@@ -128,11 +128,32 @@ export default function AssetsPage() {
                   updatedAt: doc.data().updatedAt,
                 })) as Asset[];
 
+                // Sort assets by position, then by createdAt for assets without position
+                const sortedAssets = assets.sort((a, b) => {
+                  // If both assets have position values, sort by position
+                  if (a.position !== undefined && b.position !== undefined) {
+                    return a.position - b.position;
+                  }
+                  
+                  // If only one has position, put the one with position first
+                  if (a.position !== undefined && b.position === undefined) {
+                    return -1;
+                  }
+                  if (a.position === undefined && b.position !== undefined) {
+                    return 1;
+                  }
+                  
+                  // If neither has position, sort by creation time
+                  const aTime = a.createdAt?.toMillis() || 0;
+                  const bTime = b.createdAt?.toMillis() || 0;
+                  return aTime - bTime;
+                });
+
                 // Update state with all sections' assets - use functional update to prevent unnecessary re-renders
                 setAssetsBySection(prev => {
-                  const updated = { ...prev, [section.id]: assets };
+                  const updated = { ...prev, [section.id]: sortedAssets };
                   // Only update if there's actually a change
-                  if (JSON.stringify(prev[section.id]) !== JSON.stringify(assets)) {
+                  if (JSON.stringify(prev[section.id]) !== JSON.stringify(sortedAssets)) {
                     return updated;
                   }
                   return prev;
@@ -366,6 +387,7 @@ export default function AssetsPage() {
     setEditingAssetId(assetId);
     // TODO: Implement edit asset functionality
   };
+
 
   const handleDeleteAsset = async (assetId: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {

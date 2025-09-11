@@ -274,13 +274,14 @@ export default function AddAssetModal({
         currentValue: currentValue,
         costBasis: costBasis,
         sectionId: sectionId,
+        // position will be calculated automatically by the backend
         metadata: {
           description: '',
           tags: [],
           customFields: {
-            usdPrice: selectedStock.current_price_usd,
-            avgCostCurrency: formData.avgCostCurrency,
-            costBasisCurrency: formData.costBasisCurrency,
+            usdPrice: selectedStock.current_price_usd || 0,
+            avgCostCurrency: formData.avgCostCurrency || 'USD',
+            costBasisCurrency: formData.costBasisCurrency || 'USD',
           },
         },
       };
