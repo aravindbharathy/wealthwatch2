@@ -2,14 +2,20 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Asset } from '@/lib/firebase/types';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 interface AssetTableProps {
   assets: Asset[];
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
-  onReorderAssets?: (assetIds: string[]) => void;
+  onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
   loading?: boolean;
   isAuthenticated?: boolean;
+  sectionId?: string;
 }
 
 export default function AssetTable({
@@ -19,6 +25,7 @@ export default function AssetTable({
   onReorderAssets,
   loading = false,
   isAuthenticated = true,
+  sectionId,
 }: AssetTableProps) {
   const [popupState, setPopupState] = useState<{
     isOpen: boolean;
@@ -29,6 +36,7 @@ export default function AssetTable({
     assetId: null,
     position: { top: 0, left: 0 },
   });
+
 
   const openPopup = (assetId: string, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -49,6 +57,7 @@ export default function AssetTable({
       position: { top: 0, left: 0 },
     });
   };
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -116,94 +125,231 @@ export default function AssetTable({
 
   return (
     <div className="space-y-0">
-      {/* Table Header */}
-      <div className="grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-1 px-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-        <div></div>
-        <div className="text-left">ASSET</div>
-        <div className="text-right">IRR</div>
-        <div className="text-right">COST BASIS</div>
-        <div className="text-right">VALUE</div>
-        <div></div>
-      </div>
+        {/* Table Header */}
+        <div className="grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-3 px-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <div></div>
+          <div className="text-left">ASSET</div>
+          <div className="text-right">IRR</div>
+          <div className="text-right">COST BASIS</div>
+          <div className="text-right">VALUE</div>
+          <div></div>
+        </div>
 
-      {/* Asset Rows */}
-      {assets.map((asset, index) => {
-        const totalReturnPercent = asset.costBasis > 0 ? 
-          ((asset.currentValue - asset.costBasis) / asset.costBasis) * 100 : 0;
-        const dayChange = asset.performance?.dayChange || 0;
-        const isLastAsset = index === assets.length - 1;
+        {/* Top Drop Zone */}
+        <TopDropZone sectionId={sectionId} />
 
-        return (
-          <div
+        {/* Asset Rows */}
+        {assets.map((asset, index) => (
+          <SortableAssetRow
             key={asset.id}
-            className={`grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-2 px-2 hover:bg-gray-50 group ${
-              !isLastAsset ? 'border-b border-gray-100' : ''
-            }`}
-          >
-            {/* Drag Handle */}
-            <div className="flex justify-center">
-              <svg className="w-3 h-3 text-gray-400 cursor-move" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
-              </svg>
-            </div>
-
-            {/* Asset Info */}
-            <div className="text-left">
-              <div className="font-medium text-gray-900">{asset.name}</div>
-              {asset.symbol && (
-                <div className="text-xs text-gray-500">{asset.symbol}</div>
-              )}
-            </div>
-
-            {/* IRR */}
-            <div className={`text-right text-sm font-medium ${
-              totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {formatPercent(totalReturnPercent)}
-            </div>
-
-            {/* Cost Basis */}
-            <div className="text-right text-sm font-medium text-gray-900">
-              {formatCurrency(asset.costBasis)}
-            </div>
-
-            {/* Value */}
-            <div className="text-right text-sm font-medium text-gray-900">
-              <div className="flex items-center justify-end space-x-1">
-                {getPerformanceIcon(dayChange)}
-                <span>{formatCurrency(asset.currentValue)}</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            {isAuthenticated && (
-              <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={(e) => openPopup(asset.id, e)}
-                  className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
-                  title="More options"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-        );
-      })}
-      
-      {/* Popup Menu */}
-      <PopupMenu
-        isOpen={popupState.isOpen}
-        onClose={closePopup}
-        onEdit={() => popupState.assetId && onEditAsset(popupState.assetId)}
-        onDelete={() => popupState.assetId && onDeleteAsset(popupState.assetId)}
-        position={popupState.position}
-      />
+            asset={asset}
+            index={index}
+            isLastAsset={index === assets.length - 1}
+            isAuthenticated={isAuthenticated}
+            onEditAsset={onEditAsset}
+            onDeleteAsset={onDeleteAsset}
+            openPopup={openPopup}
+            formatCurrency={formatCurrency}
+            formatPercent={formatPercent}
+            getPerformanceIcon={getPerformanceIcon}
+          />
+        ))}
+        
+        {/* Bottom Drop Zone */}
+        <BottomDropZone sectionId={sectionId} />
+        
+        {/* Popup Menu */}
+        <PopupMenu
+          isOpen={popupState.isOpen}
+          onClose={closePopup}
+          onEdit={() => popupState.assetId && onEditAsset(popupState.assetId)}
+          onDelete={() => popupState.assetId && onDeleteAsset(popupState.assetId)}
+          position={popupState.position}
+        />
     </div>
   );
 }
+
+// Sortable Asset Row Component
+interface SortableAssetRowProps {
+  asset: Asset;
+  index: number;
+  isLastAsset: boolean;
+  isAuthenticated: boolean;
+  onEditAsset: (assetId: string) => void;
+  onDeleteAsset: (assetId: string) => void;
+  openPopup: (assetId: string, event: React.MouseEvent) => void;
+  formatCurrency: (amount: number) => string;
+  formatPercent: (percent: number) => string;
+  getPerformanceIcon: (change: number) => JSX.Element | null;
+}
+
+const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
+  asset,
+  index,
+  isLastAsset,
+  isAuthenticated,
+  onEditAsset,
+  onDeleteAsset,
+  openPopup,
+  formatCurrency,
+  formatPercent,
+  getPerformanceIcon,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: asset.id });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: asset.id,
+    data: {
+      type: 'asset',
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const totalReturnPercent = asset.costBasis > 0 ? 
+    ((asset.currentValue - asset.costBasis) / asset.costBasis) * 100 : 0;
+  const dayChange = asset.performance?.dayChange || 0;
+
+  // Combine sortable and droppable refs
+  const combinedRef = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    setDroppableRef(node);
+  };
+
+  return (
+    <div
+      ref={combinedRef}
+      style={style}
+      className={`relative grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-2 px-2 hover:bg-gray-50 group transition-all duration-200 ${
+        !isLastAsset ? 'border-b border-gray-100' : ''
+      } ${isDragging ? 'z-50' : ''} ${
+        isOver ? 'bg-blue-50' : ''
+      }`}
+    >
+      {/* Drop Indicator Line */}
+      {isOver && (
+        <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 shadow-lg z-20"></div>
+      )}
+      
+      {/* Drag Handle */}
+      <div className="flex justify-center">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-move p-1 hover:bg-gray-200 rounded transition-colors duration-150 group/drag"
+          title="Drag to reorder"
+        >
+          <svg className="w-3 h-3 text-gray-400 group-hover/drag:text-gray-600 transition-colors duration-150" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Asset Info */}
+      <div className="text-left">
+        <div className="font-medium text-gray-900">{asset.name}</div>
+        {asset.symbol && (
+          <div className="text-xs text-gray-500">{asset.symbol}</div>
+        )}
+      </div>
+
+      {/* IRR */}
+      <div className={`text-right text-sm font-medium ${
+        totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
+      }`}>
+        {formatPercent(totalReturnPercent)}
+      </div>
+
+      {/* Cost Basis */}
+      <div className="text-right text-sm font-medium text-gray-900">
+        {formatCurrency(asset.costBasis)}
+      </div>
+
+      {/* Value */}
+      <div className="text-right text-sm font-medium text-gray-900">
+        <div className="flex items-center justify-end space-x-1">
+          {getPerformanceIcon(dayChange)}
+          <span>{formatCurrency(asset.currentValue)}</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      {isAuthenticated && (
+        <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => openPopup(asset.id, e)}
+            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
+            title="More options"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Top Drop Zone Component
+interface TopDropZoneProps {
+  sectionId?: string;
+}
+
+const TopDropZone: React.FC<TopDropZoneProps> = ({ sectionId }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `top-${sectionId}`,
+    data: {
+      type: 'top-zone',
+      sectionId,
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`h-2 transition-colors ${
+        isOver ? 'bg-blue-200' : 'bg-transparent'
+      }`}
+    />
+  );
+};
+
+// Bottom Drop Zone Component
+interface BottomDropZoneProps {
+  sectionId?: string;
+}
+
+const BottomDropZone: React.FC<BottomDropZoneProps> = ({ sectionId }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `bottom-${sectionId}`,
+    data: {
+      type: 'bottom-zone',
+      sectionId,
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`h-2 transition-colors ${
+        isOver ? 'bg-blue-200' : 'bg-transparent'
+      }`}
+    />
+  );
+};
 
 // Popup Menu Component
 interface PopupMenuProps {

@@ -2,6 +2,24 @@
 
 import { AssetSection, Asset } from '@/lib/firebase/types';
 import SectionItem from './SectionItem';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import React, { useState } from 'react';
 
 interface SectionListProps {
   sections: AssetSection[];
@@ -12,6 +30,7 @@ interface SectionListProps {
   onDeleteSection: (sectionId: string) => void;
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
+  onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
   onAddSection: () => void;
   loading?: boolean;
   isAuthenticated?: boolean;
@@ -26,10 +45,149 @@ export default function SectionList({
   onDeleteSection,
   onEditAsset,
   onDeleteAsset,
+  onReorderAssets,
   onAddSection,
   loading = false,
   isAuthenticated = true,
 }: SectionListProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [optimisticAssetsBySection, setOptimisticAssetsBySection] = useState<{ [sectionId: string]: Asset[] }>(assetsBySection);
+
+  // Sync optimistic assets with actual assets when they change
+  React.useEffect(() => {
+    setOptimisticAssetsBySection(assetsBySection);
+  }, [assetsBySection]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const activeId = event.active.id as string;
+    setActiveId(activeId);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id && onReorderAssets) {
+      // Find which section the active asset belongs to
+      let sourceSectionId = '';
+      let sourceIndex = -1;
+      
+      for (const [sectionId, assets] of Object.entries(optimisticAssetsBySection)) {
+        const index = assets.findIndex(asset => asset.id === active.id);
+        if (index !== -1) {
+          sourceSectionId = sectionId;
+          sourceIndex = index;
+          break;
+        }
+      }
+
+      if (sourceSectionId && sourceIndex !== -1) {
+        // Determine target section and index
+        let targetSectionId = sourceSectionId;
+        let targetIndex = sourceIndex;
+
+        // Check the drop target type
+        if (over.data?.current?.type === 'section') {
+          // Dropping on section header - add to beginning
+          targetSectionId = over.id as string;
+          targetIndex = 0;
+        } else if (over.data?.current?.type === 'top-zone') {
+          // Dropping on top zone - add to beginning of section
+          targetSectionId = over.data.current.sectionId;
+          targetIndex = 0;
+        } else if (over.data?.current?.type === 'bottom-zone') {
+          // Dropping on bottom zone - add to end of section
+          targetSectionId = over.data.current.sectionId;
+          const targetAssets = optimisticAssetsBySection[targetSectionId] || [];
+          targetIndex = targetAssets.length;
+        } else if (over.data?.current?.type === 'asset') {
+          // Dropping on another asset
+          for (const [sectionId, assets] of Object.entries(optimisticAssetsBySection)) {
+            const index = assets.findIndex(asset => asset.id === over.id);
+            if (index !== -1) {
+              targetSectionId = sectionId;
+              // If dropping on the last asset, insert after it
+              // Otherwise, insert at that position (before the target asset)
+              targetIndex = index === assets.length - 1 ? index + 1 : index;
+              break;
+            }
+          }
+        } else {
+          // Fallback: try to find the asset by ID
+          for (const [sectionId, assets] of Object.entries(optimisticAssetsBySection)) {
+            const index = assets.findIndex(asset => asset.id === over.id);
+            if (index !== -1) {
+              targetSectionId = sectionId;
+              // If dropping on the last asset, insert after it
+              // Otherwise, insert at that position (before the target asset)
+              targetIndex = index === assets.length - 1 ? index + 1 : index;
+              break;
+            }
+          }
+        }
+
+
+        if (sourceSectionId !== targetSectionId || sourceIndex !== targetIndex) {
+          // Apply optimistic update for both within-section and cross-section moves
+          const newOptimisticAssets = { ...optimisticAssetsBySection };
+          
+          // Double-check that we have valid section IDs
+          if (!sourceSectionId || !targetSectionId) {
+            console.error('❌ Invalid section IDs:', { sourceSectionId, targetSectionId });
+            return;
+          }
+          
+          if (sourceSectionId === targetSectionId) {
+            // Within-section move - apply optimistic update immediately
+            const assets = [...newOptimisticAssets[sourceSectionId]];
+            const movedAsset = assets[sourceIndex];
+            
+            // Remove the asset from its current position
+            assets.splice(sourceIndex, 1);
+            
+            // Adjust targetIndex if we removed an item before the target position
+            const adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+            
+            // Insert at the new position
+            assets.splice(adjustedTargetIndex, 0, movedAsset);
+            
+            newOptimisticAssets[sourceSectionId] = assets;
+          } else {
+            // Cross-section move - apply optimistic update
+            const sourceAssets = [...newOptimisticAssets[sourceSectionId]];
+            const targetAssets = [...(newOptimisticAssets[targetSectionId] || [])];
+            
+            // Remove from source
+            const [movedAsset] = sourceAssets.splice(sourceIndex, 1);
+            
+            // Add to target at the specified position
+            targetAssets.splice(targetIndex, 0, movedAsset);
+            
+            // Update both sections
+            newOptimisticAssets[sourceSectionId] = sourceAssets;
+            newOptimisticAssets[targetSectionId] = targetAssets;
+          }
+          
+          setOptimisticAssetsBySection(newOptimisticAssets);
+
+          // Call the backend function
+          onReorderAssets(active.id as string, targetSectionId, targetIndex);
+        }
+      }
+    }
+    
+    setActiveId(null);
+  };
   if (loading) {
     return (
       <div className="space-y-2">
@@ -81,39 +239,69 @@ export default function SectionList({
     );
   }
 
-  return (
-    <div className="space-y-2">
-      {/* Sections */}
-      {sections.map((section) => (
-        <SectionItem
-          key={section.id}
-          section={section}
-          assets={assetsBySection[section.id] || []}
-          onToggle={onToggleSection}
-          onAddAsset={onAddAsset}
-          onEditSection={onEditSection}
-          onDeleteSection={onDeleteSection}
-          onEditAsset={onEditAsset}
-          onDeleteAsset={onDeleteAsset}
-          loading={loading}
-          isAuthenticated={isAuthenticated}
-        />
-      ))}
+  // Get all asset IDs for the sortable context
+  const allAssetIds = Object.values(optimisticAssetsBySection).flatMap(assets => assets.map(asset => asset.id));
 
-      {/* Add Section Button */}
-      {isAuthenticated && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <button
-            onClick={onAddSection}
-            className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>NEW SECTION</span>
-          </button>
-        </div>
-      )}
-    </div>
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="space-y-2 overflow-visible">
+        {/* Sections */}
+        <SortableContext items={allAssetIds} strategy={verticalListSortingStrategy}>
+          {sections.map((section) => (
+            <SectionItem
+              key={section.id}
+              section={section}
+              assets={optimisticAssetsBySection[section.id] || []}
+              onToggle={onToggleSection}
+              onAddAsset={onAddAsset}
+              onEditSection={onEditSection}
+              onDeleteSection={onDeleteSection}
+              onEditAsset={onEditAsset}
+              onDeleteAsset={onDeleteAsset}
+              onReorderAssets={onReorderAssets}
+              loading={loading}
+              isAuthenticated={isAuthenticated}
+            />
+          ))}
+        </SortableContext>
+
+        {/* Add Section Button */}
+        {isAuthenticated && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+            <button
+              onClick={onAddSection}
+              className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>NEW SECTION</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      <DragOverlay>
+        {activeId ? (
+          <div className="bg-white border border-gray-200 rounded-lg shadow-xl opacity-95 p-2">
+            <div className="font-medium text-gray-900">
+              {(() => {
+                // Find the asset being dragged
+                for (const assets of Object.values(optimisticAssetsBySection)) {
+                  const asset = assets.find(a => a.id === activeId);
+                  if (asset) return asset.name;
+                }
+                return 'Asset';
+              })()}
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }

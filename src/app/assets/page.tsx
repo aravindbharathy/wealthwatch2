@@ -6,7 +6,7 @@ import { clearDuplicatesFromConsole } from '@/lib/firebase/clearDuplicates';
 import { useAssetSheets, useAssetSummary } from '@/lib/hooks/useAssetSheets';
 import { useDemoAssetSheets, useDemoAssetSummary, useDemoSectionAssets } from '@/lib/hooks/useDemoAssets';
 import { AssetSheet, AssetSection, Asset, CreateAssetInput, CreateAssetSheetInput, CreateAssetSectionInput } from '@/lib/firebase/types';
-import { createAsset } from '@/lib/firebase/firebaseUtils';
+import { createAsset, deleteAsset, reorderAssets } from '@/lib/firebase/firebaseUtils';
 import { 
   collection, 
   getDocs, 
@@ -392,10 +392,33 @@ export default function AssetsPage() {
   const handleDeleteAsset = async (assetId: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
       try {
-        // This would be handled by the useSectionAssets hook
+        const result = await deleteAsset(effectiveUserId, assetId);
+        if (result.success) {
+          // The useAssetsForSections hook will automatically refresh and remove the asset
+        } else {
+          console.error('Failed to delete asset:', result.error);
+          alert('Failed to delete asset. Please try again.');
+        }
       } catch (error) {
         console.error('Error deleting asset:', error);
+        alert('An error occurred while deleting the asset. Please try again.');
       }
+    }
+  };
+
+  const handleReorderAssets = async (assetId: string, newSectionId: string, newIndex: number) => {
+    try {
+      const result = await reorderAssets(effectiveUserId, assetId, newSectionId, newIndex);
+      
+      if (result.success) {
+        // The useAssetsForSections hook will automatically refresh and show the new order
+      } else {
+        console.error('❌ Failed to reorder asset:', result.error);
+        alert('Failed to reorder asset. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error reordering asset:', error);
+      alert('An error occurred while reordering the asset. Please try again.');
     }
   };
 
@@ -575,6 +598,7 @@ export default function AssetsPage() {
           onDeleteSection={handleDeleteSection}
           onEditAsset={handleEditAsset}
           onDeleteAsset={handleDeleteAsset}
+          onReorderAssets={handleReorderAssets}
           onAddSection={handleAddSection}
           loading={currentSheetsLoading && currentSheets.length === 0}
           isAuthenticated={Boolean(user || isDemoUser)}

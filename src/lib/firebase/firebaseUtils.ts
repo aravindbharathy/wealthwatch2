@@ -320,6 +320,123 @@ export const deleteAsset = async (userId: string, assetId: string): Promise<ApiR
   }
 };
 
+export const reorderAssets = async (
+  userId: string, 
+  assetId: string, 
+  newSectionId: string, 
+  newIndex: number
+): Promise<ApiResponse<void>> => {
+  try {
+    // Get the current asset to check if it's moving to a different section
+    const currentAssetResult = await getAsset(userId, assetId);
+    if (!currentAssetResult.success || !currentAssetResult.data) {
+      return { success: false, error: 'Asset not found' };
+    }
+
+    const currentAsset = currentAssetResult.data;
+    const isMovingToDifferentSection = currentAsset.sectionId !== newSectionId;
+    
+
+    // Get all assets in both sections before the transaction
+    const targetSectionQuery = query(
+      collection(db, `users/${userId}/assets`),
+      where('sectionId', '==', newSectionId)
+    );
+    const targetSectionSnapshot = await getDocs(targetSectionQuery);
+    
+    // Sort assets by position to get the correct order
+    const targetAssets = targetSectionSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Asset))
+      .sort((a, b) => (a.position || 0) - (b.position || 0));
+
+
+    // Get all assets in the old section if moving to a different section
+    let oldSectionSnapshot = null;
+    if (isMovingToDifferentSection) {
+      const oldSectionQuery = query(
+        collection(db, `users/${userId}/assets`),
+        where('sectionId', '==', currentAsset.sectionId)
+      );
+      oldSectionSnapshot = await getDocs(oldSectionQuery);
+    }
+
+    // Use a transaction to ensure atomicity
+    await runTransaction(db, async (transaction) => {
+      // Handle cross-section moves
+      if (isMovingToDifferentSection) {
+        
+        // 1. Update positions in the old section (shift down assets after the moved asset)
+        if (oldSectionSnapshot) {
+          oldSectionSnapshot.docs.forEach((doc) => {
+            const asset = doc.data();
+            if (asset.position > currentAsset.position) {
+              transaction.update(doc.ref, { 
+                position: asset.position - 1,
+                updatedAt: serverTimestamp()
+              });
+            }
+          });
+        }
+
+        // 2. Update positions in the target section (shift up assets at and after the new position)
+        targetSectionSnapshot.docs.forEach((doc) => {
+          const asset = doc.data();
+          if (asset.position >= newIndex) {
+            transaction.update(doc.ref, { 
+              position: asset.position + 1,
+              updatedAt: serverTimestamp()
+            });
+          }
+        });
+
+        // 3. Update the moved asset's sectionId and position
+        const movedAssetDocRef = doc(db, `users/${userId}/assets`, assetId);
+        transaction.update(movedAssetDocRef, {
+          sectionId: newSectionId,
+          position: newIndex,
+          updatedAt: serverTimestamp()
+        });
+
+      } else {
+        // Handle within-section moves
+        
+        const currentIndex = targetAssets.findIndex(asset => asset.id === assetId);
+        
+        if (currentIndex === -1) {
+          return;
+        }
+
+        // Use arrayMove logic to determine new positions
+        const reorderedAssets = [...targetAssets];
+        const [movedAsset] = reorderedAssets.splice(currentIndex, 1);
+        reorderedAssets.splice(newIndex, 0, movedAsset);
+
+
+        // Update all assets with their new positions
+        reorderedAssets.forEach((asset, index) => {
+          const doc = targetSectionSnapshot.docs.find(d => d.id === asset.id);
+          if (doc) {
+            const oldPosition = asset.position;
+            const newPosition = index;
+            
+            if (oldPosition !== newPosition) {
+              
+              transaction.update(doc.ref, {
+                position: newPosition,
+                updatedAt: serverTimestamp()
+              });
+            }
+          }
+        });
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
 // ============================================================================
 // DEBT MANAGEMENT FUNCTIONS
 // ============================================================================

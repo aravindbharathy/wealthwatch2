@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AssetSection, Asset } from '@/lib/firebase/types';
 import AssetTable from './AssetTable';
+import { useDroppable } from '@dnd-kit/core';
 
 interface SectionItemProps {
   section: AssetSection;
@@ -13,6 +14,7 @@ interface SectionItemProps {
   onDeleteSection: (sectionId: string) => void;
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
+  onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
   loading?: boolean;
   isAuthenticated?: boolean;
 }
@@ -26,9 +28,16 @@ export default function SectionItem({
   onDeleteSection,
   onEditAsset,
   onDeleteAsset,
+  onReorderAssets,
   loading = false,
   isAuthenticated = true,
 }: SectionItemProps) {
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: section.id,
+    data: {
+      type: 'section',
+    },
+  });
   const [showActions, setShowActions] = useState(false);
 
   const formatCurrency = (amount: number) => {
@@ -63,10 +72,16 @@ export default function SectionItem({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div 
+      ref={setDroppableRef}
+      className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 overflow-visible ${
+        isOver ? 'border-blue-400 bg-blue-50 shadow-md scale-[1.02]' : 'border-gray-200'
+      }`}
+    >
+
       {/* Section Header */}
       <div 
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
+        className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 relative"
         onClick={() => onToggle(section.id)}
       >
         <div className="flex items-center space-x-3">
@@ -150,15 +165,17 @@ export default function SectionItem({
 
       {/* Section Content */}
       {section.isExpanded && (
-        <div className="border-t border-gray-200">
+        <div className="border-t border-gray-200 overflow-visible">
           {/* Asset Table */}
-          <div>
+          <div className="overflow-visible">
             <AssetTable
               assets={assets}
               onEditAsset={onEditAsset}
               onDeleteAsset={onDeleteAsset}
+              onReorderAssets={onReorderAssets}
               loading={loading}
               isAuthenticated={isAuthenticated}
+              sectionId={section.id}
             />
           </div>
 
