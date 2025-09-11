@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { clearDuplicatesFromConsole } from '@/lib/firebase/clearDuplicates';
 import { useAssetSheets, useAssetSummary } from '@/lib/hooks/useAssetSheets';
@@ -84,66 +84,86 @@ export default function AssetsPage() {
   // Custom hook to fetch assets for all sections
   const useAssetsForSections = (sections: AssetSection[], userId: string) => {
     const [assetsBySection, setAssetsBySection] = useState<{ [sectionId: string]: Asset[] }>({});
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false); // Start with false to prevent initial loading flicker
     const [error, setError] = useState<string | null>(null);
+    const [activeListeners, setActiveListeners] = useState<Set<string>>(new Set());
 
     useEffect(() => {
       if (!sections.length || !userId) {
-        setAssetsBySection({});
         setLoading(false);
         return;
       }
 
-      setLoading(true);
       setError(null);
+
+      // Get section IDs for current sections
+      const currentSectionIds = new Set(sections.map(s => s.id));
+      
+      // Only show loading if we don't have assets for any of the current sections
+      const hasAssetsForCurrentSections = sections.some(section => assetsBySection[section.id]?.length > 0);
+      if (!hasAssetsForCurrentSections) {
+        setLoading(true);
+      }
 
       // Set up real-time listeners for each section
       const unsubscribeFunctions: (() => void)[] = [];
-      const newAssetsBySection: { [sectionId: string]: Asset[] } = {};
+      const newActiveListeners = new Set<string>();
 
       sections.forEach((section) => {
-        const assetsRef = collection(db, `users/${userId}/assets`);
-        const q = query(
-          assetsRef,
-          where('sectionId', '==', section.id)
-        );
+        // Only set up listener if we don't already have one for this section
+        if (!activeListeners.has(section.id)) {
+          const assetsRef = collection(db, `users/${userId}/assets`);
+          const q = query(
+            assetsRef,
+            where('sectionId', '==', section.id)
+          );
 
-        const unsubscribe = onSnapshot(q, 
-          (snapshot) => {
-            try {
-              const assets = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                createdAt: doc.data().createdAt,
-                updatedAt: doc.data().updatedAt,
-              })) as Asset[];
+          const unsubscribe = onSnapshot(q, 
+            (snapshot) => {
+              try {
+                const assets = snapshot.docs.map(doc => ({
+                  id: doc.id,
+                  ...doc.data(),
+                  createdAt: doc.data().createdAt,
+                  updatedAt: doc.data().updatedAt,
+                })) as Asset[];
 
-              newAssetsBySection[section.id] = assets;
-              
-              // Update state with all sections' assets
-              setAssetsBySection({ ...newAssetsBySection });
-              setLoading(false);
-            } catch (err) {
-              console.error(`Error processing assets for section ${section.id}:`, err);
-              setError(err instanceof Error ? err.message : 'Error processing assets');
+                // Update state with all sections' assets - use functional update to prevent unnecessary re-renders
+                setAssetsBySection(prev => {
+                  const updated = { ...prev, [section.id]: assets };
+                  // Only update if there's actually a change
+                  if (JSON.stringify(prev[section.id]) !== JSON.stringify(assets)) {
+                    return updated;
+                  }
+                  return prev;
+                });
+                setLoading(false);
+              } catch (err) {
+                console.error(`Error processing assets for section ${section.id}:`, err);
+                setError(err instanceof Error ? err.message : 'Error processing assets');
+                setLoading(false);
+              }
+            },
+            (err) => {
+              console.error(`Firebase error for section ${section.id}:`, err);
+              setError(err.message);
               setLoading(false);
             }
-          },
-          (err) => {
-            console.error(`Firebase error for section ${section.id}:`, err);
-            setError(err.message);
-            setLoading(false);
-          }
-        );
+          );
 
-        unsubscribeFunctions.push(unsubscribe);
+          unsubscribeFunctions.push(unsubscribe);
+          newActiveListeners.add(section.id);
+        }
       });
 
-      // Cleanup function
+      // Update active listeners
+      setActiveListeners(newActiveListeners);
+
+      // Cleanup function - only unsubscribe from listeners that are no longer needed
       return () => {
         unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
       };
-    }, [sections, userId]);
+    }, [sections.map(s => s.id).join(','), userId]); // Only depend on section IDs, not the full section objects
 
     return { assetsBySection, loading, error };
   };
@@ -170,7 +190,7 @@ export default function AssetsPage() {
     }
     const sections = activeSheet.sections || [];
     return sections;
-  }, [activeSheet]);
+  }, [activeSheet?.id, activeSheet?.sections]);
 
   // Get assets by section using the new hook
   const { assetsBySection, loading: assetsLoading, error: assetsError } = useAssetsForSections(sections, effectiveUserId);
@@ -189,7 +209,7 @@ export default function AssetsPage() {
     }
   }, [user, isDemoUser]);
 
-  // Initialize expanded sections
+  // Initialize expanded sections - only when sections change significantly
   useEffect(() => {
     if (sections.length > 0) {
       const newExpandedSections = new Set<string>();
@@ -198,14 +218,23 @@ export default function AssetsPage() {
           newExpandedSections.add(section.id);
         }
       });
-      setExpandedSections(newExpandedSections);
+      
+      // Only update if the expanded sections are actually different
+      const currentExpandedArray = Array.from(expandedSections).sort();
+      const newExpandedArray = Array.from(newExpandedSections).sort();
+      if (JSON.stringify(currentExpandedArray) !== JSON.stringify(newExpandedArray)) {
+        setExpandedSections(newExpandedSections);
+      }
     }
-  }, [sections]);
+  }, [sections.map(s => `${s.id}-${s.isExpanded}`).join(',')]); // Only depend on section expansion state
 
   // Event handlers
-  const handleSheetChange = (sheetId: string) => {
-    setActiveSheetId(sheetId);
-  };
+  const handleSheetChange = useCallback((sheetId: string) => {
+    // Only update if the sheet is actually different
+    if (sheetId !== activeSheetId) {
+      setActiveSheetId(sheetId);
+    }
+  }, [activeSheetId]);
 
   const handleAddSheet = () => {
     // Only allow adding sheets if user is authenticated (including demo user)
@@ -256,7 +285,7 @@ export default function AssetsPage() {
     }
   };
 
-  const handleToggleSection = async (sectionId: string) => {
+  const handleToggleSection = useCallback(async (sectionId: string) => {
     const isExpanded = expandedSections.has(sectionId);
     const newExpandedSections = new Set(expandedSections);
     
@@ -274,7 +303,7 @@ export default function AssetsPage() {
     } catch (error) {
       console.error('Error updating section:', error);
     }
-  };
+  }, [expandedSections, updateSection]);
 
   const handleAddSection = () => {
     // Only allow adding sections if user is authenticated (including demo user)
@@ -348,8 +377,8 @@ export default function AssetsPage() {
     }
   };
 
-  // Loading state
-  if (currentSheetsLoading || assetsLoading) {
+  // Loading state - only show full page loading on initial load, not when switching sheets
+  if (currentSheetsLoading && currentSheets.length === 0) {
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -523,7 +552,7 @@ export default function AssetsPage() {
         onEditAsset={handleEditAsset}
         onDeleteAsset={handleDeleteAsset}
         onAddSection={handleAddSection}
-        loading={currentSheetsLoading || assetsLoading}
+        loading={currentSheetsLoading && currentSheets.length === 0}
         isAuthenticated={Boolean(user || isDemoUser)}
       />
 

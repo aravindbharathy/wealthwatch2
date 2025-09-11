@@ -54,13 +54,14 @@ export default function AssetTable({
     return (
       <div className="animate-pulse">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between py-3 border-b border-gray-100">
-            <div className="flex items-center space-x-4">
+          <div key={i} className="flex items-center py-3 border-b border-gray-100">
+            <div className="flex items-center space-x-4 w-48">
               <div className="w-4 h-4 bg-gray-200 rounded"></div>
               <div className="w-32 h-4 bg-gray-200 rounded"></div>
             </div>
-            <div className="flex items-center space-x-8">
-              <div className="w-16 h-4 bg-gray-200 rounded"></div>
+            <div className="flex items-center space-x-8 flex-1">
+              <div className="w-20 h-4 bg-gray-200 rounded"></div>
+              <div className="w-20 h-4 bg-gray-200 rounded"></div>
               <div className="w-20 h-4 bg-gray-200 rounded"></div>
             </div>
           </div>
@@ -86,13 +87,14 @@ export default function AssetTable({
   return (
     <div className="space-y-1">
       {/* Table Header */}
-      <div className="flex items-center justify-between py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-        <div className="flex items-center space-x-4">
+      <div className="flex items-center py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+        <div className="flex items-center space-x-4 w-48">
           <div className="w-4"></div>
           <div className="w-32">ASSET</div>
         </div>
-        <div className="flex items-center space-x-8">
-          <div className="w-16 text-center">IRR</div>
+        <div className="flex items-center space-x-8 flex-1">
+          <div className="w-20 text-center">IRR</div>
+          <div className="w-20 text-center">COST BASIS</div>
           <div className="w-20 text-center">VALUE</div>
         </div>
       </div>
@@ -106,9 +108,9 @@ export default function AssetTable({
         return (
           <div
             key={asset.id}
-            className="flex items-center justify-between py-3 px-4 hover:bg-gray-50 group"
+            className="flex items-center py-3 px-4 hover:bg-gray-50 group"
           >
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 w-48">
               {/* Drag Handle */}
               <div className="w-4 flex justify-center">
                 <svg className="w-3 h-3 text-gray-400 cursor-move" fill="currentColor" viewBox="0 0 20 20">
@@ -128,16 +130,21 @@ export default function AssetTable({
               </div>
             </div>
 
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-8 flex-1">
               {/* IRR */}
-              <div className={`w-16 text-center text-sm font-medium ${
+              <div className={`w-20 text-center text-sm font-medium ${
                 totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
                 {formatPercent(totalReturnPercent)}
               </div>
 
+              {/* Cost Basis */}
+              <div className="w-20 text-center text-sm font-medium text-gray-900">
+                {formatCurrency(asset.costBasis)}
+              </div>
+
               {/* Value */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-center space-x-2 w-20">
                 <div className="text-sm font-medium text-gray-900">
                   {formatCurrency(asset.currentValue)}
                 </div>
@@ -146,7 +153,7 @@ export default function AssetTable({
 
               {/* Actions */}
               {isAuthenticated && (
-                <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
                   <button
                     onClick={() => onEditAsset(asset.id)}
                     className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"

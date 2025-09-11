@@ -8,7 +8,8 @@ interface SummaryBarProps {
 }
 
 export default function SummaryBar({ summary, loading }: SummaryBarProps) {
-  if (loading) {
+  // If loading and we have no summary, show loading placeholders
+  if (loading && !summary) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <div className="animate-pulse">
@@ -23,6 +24,7 @@ export default function SummaryBar({ summary, loading }: SummaryBarProps) {
     );
   }
 
+  // If no summary and not loading, show no data message
   if (!summary) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -52,7 +54,12 @@ export default function SummaryBar({ summary, loading }: SummaryBarProps) {
       {/* Main Summary */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Investments</h1>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-2xl font-bold text-gray-900">Investments</h1>
+            {loading && (
+              <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+            )}
+          </div>
           <p className="text-sm text-gray-600">Total Portfolio Value</p>
         </div>
         <div className="text-right">

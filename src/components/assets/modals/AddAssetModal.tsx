@@ -70,10 +70,12 @@ export default function AddAssetModal({
         .finally(() => {
           setIsSearching(false);
         });
-    } else {
+    } else if (searchQuery.length === 0) {
+      // Only clear search results when search is completely empty
       setSearchResults([]);
       setShowSuggestions(false);
     }
+    // Don't clear results when search query is 1 character - keep previous results visible
   }, [searchQuery]);
 
   // Handle clicks outside search dropdown
@@ -326,8 +328,8 @@ export default function AddAssetModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 h-[80vh] flex flex-col">
+        <div className="p-6 flex-1 overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Add Holding</h2>
@@ -342,7 +344,7 @@ export default function AddAssetModal({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form id="add-asset-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Search Bar */}
             <div ref={searchRef} className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -372,7 +374,7 @@ export default function AddAssetModal({
               
               {/* Search Suggestions */}
               {showSuggestions && searchResults.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 min-h-[120px] overflow-y-auto">
                   {searchResults.map((stock, index) => (
                     <div
                       key={index}
@@ -401,8 +403,8 @@ export default function AddAssetModal({
             </div>
 
             {/* Popular Stocks Suggestions - Show when no stock is selected and no search query */}
-            {!selectedStock && !searchQuery && (
-              <div>
+            {!selectedStock && searchQuery.length === 0 && (
+              <div className="min-h-[200px]">
                 <p className="text-sm text-gray-600 mb-4">Get latest value of your stocks, funds and bonds</p>
                 <div className="grid grid-cols-2 gap-3">
                   {POPULAR_STOCKS.map((stock, index) => (
@@ -523,24 +525,28 @@ export default function AddAssetModal({
               </>
             )}
 
-            {/* Actions */}
-            <div className="flex justify-end space-x-3 pt-6">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading || !selectedStock}
-                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Adding...' : 'Add Holding'}
-              </button>
-            </div>
           </form>
+        </div>
+        
+        {/* Fixed Actions Footer */}
+        <div className="border-t border-gray-200 p-6 bg-white rounded-b-lg">
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="add-asset-form"
+              disabled={loading || !selectedStock}
+              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Adding...' : 'Add Holding'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getUserPreferences, saveUserPreferences, getPreferredCurrency } from '@/lib/preferences';
+import { getUserPreferences, saveUserPreferences, getPreferredCurrency, setPreferredCurrency } from '@/lib/preferences';
 
 interface CurrencyPreferenceSelectorProps {
   className?: string;
@@ -25,12 +25,16 @@ export default function CurrencyPreferenceSelector({ className = "" }: CurrencyP
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    setPreferredCurrency(getPreferredCurrency());
+    const loadPreferredCurrency = async () => {
+      const currency = await getPreferredCurrency();
+      setPreferredCurrency(currency);
+    };
+    loadPreferredCurrency();
   }, []);
 
-  const handleCurrencyChange = (currency: string) => {
+  const handleCurrencyChange = async (currency: string) => {
     setPreferredCurrency(currency);
-    saveUserPreferences({ preferredCurrency: currency });
+    await setPreferredCurrency(currency);
     setIsOpen(false);
   };
 

@@ -249,14 +249,6 @@ export function getCurrencySymbol(currency: string): string {
     BMD: '$',
     BSD: '$',
     BAH: '$',
-    TTD: 'TT$',
-    XCD: '$',
-    AWG: 'ƒ',
-    ANG: 'ƒ',
-    KYD: '$',
-    BMD: '$',
-    BSD: '$',
-    BAH: '$',
   };
   
   return symbols[currency] || currency;

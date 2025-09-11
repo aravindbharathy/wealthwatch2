@@ -138,10 +138,18 @@ export function useAssetSheets(userId: string) {
     let sheetsUnsubscribe: (() => void) | null = null;
 
     const setupListeners = () => {
-      // Listen to sheets changes
+      // Listen to sheets changes - only reload if there are actual changes
       sheetsUnsubscribe = onSnapshot(sheetsQuery, 
         async (snapshot) => {
-          await loadSheetsWithSections();
+          // Only reload if there are actual changes to sheets (not sections)
+          const hasSheetChanges = snapshot.docChanges().some(change => 
+            change.type === 'added' || change.type === 'removed' || 
+            (change.type === 'modified' && change.doc.id.startsWith('sheet'))
+          );
+          
+          if (hasSheetChanges) {
+            await loadSheetsWithSections();
+          }
         },
         (err) => {
           console.error('Firebase sheets error:', err);
@@ -220,8 +228,21 @@ export function useAssetSheets(userId: string) {
 
       const docRef = await addDoc(collection(db, `users/${userId}/sections`), newSection);
       
-      // Force a refresh of the sheets data to show the new section immediately
-      setRefreshTrigger(prev => prev + 1);
+      // Update local state immediately to prevent flickering
+      const createdSection: AssetSection = {
+        id: docRef.id,
+        ...newSection,
+        createdAt: newSection.createdAt,
+        updatedAt: newSection.updatedAt,
+      };
+      
+      setSheets(prevSheets => 
+        prevSheets.map(sheet => 
+          sheet.id === input.sheetId 
+            ? { ...sheet, sections: [...(sheet.sections || []), createdSection] }
+            : sheet
+        )
+      );
       
       return docRef.id;
     } catch (err) {
@@ -239,8 +260,17 @@ export function useAssetSheets(userId: string) {
         updatedAt: Timestamp.now(),
       });
       
-      // Trigger refresh to show updated section
-      setRefreshTrigger(prev => prev + 1);
+      // Update local state immediately to prevent flickering
+      setSheets(prevSheets => 
+        prevSheets.map(sheet => ({
+          ...sheet,
+          sections: sheet.sections.map(section => 
+            section.id === sectionId 
+              ? { ...section, ...updates }
+              : section
+          )
+        }))
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update section');
       throw err;
@@ -251,8 +281,13 @@ export function useAssetSheets(userId: string) {
     try {
       await deleteDoc(doc(db, `users/${userId}/sections`, sectionId));
       
-      // Trigger refresh to show section removal
-      setRefreshTrigger(prev => prev + 1);
+      // Update local state immediately to prevent flickering
+      setSheets(prevSheets => 
+        prevSheets.map(sheet => ({
+          ...sheet,
+          sections: sheet.sections.filter(section => section.id !== sectionId)
+        }))
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete section');
       throw err;
@@ -274,19 +309,39 @@ export function useAssetSheets(userId: string) {
 
 export function useAssetSummary(sheetId: string, userId: string) {
   const [summary, setSummary] = useState<AssetSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false to prevent initial loading flicker
+  const [lastSheetId, setLastSheetId] = useState<string>('');
+  const [summaryCache, setSummaryCache] = useState<{ [sheetId: string]: AssetSummary }>({});
 
   useEffect(() => {
     if (!sheetId) {
       // Clear summary when no sheetId is provided (e.g., after signout)
       setSummary(null);
       setLoading(false);
+      setLastSheetId('');
+      return;
+    }
+
+    // If we have a cached summary for this sheet, use it immediately
+    if (summaryCache[sheetId]) {
+      setSummary(summaryCache[sheetId]);
+      setLoading(false);
+      setLastSheetId(sheetId);
+      return;
+    }
+
+    // If we already have a summary for this sheet, don't reload
+    if (summary && lastSheetId === sheetId) {
+      setLoading(false);
       return;
     }
 
     const calculateSummary = async () => {
       try {
-        setLoading(true);
+        // Only show loading if we don't have any summary at all (first load)
+        if (!summary && Object.keys(summaryCache).length === 0) {
+          setLoading(true);
+        }
         
         // Get all sections for this sheet
         const sectionsRef = collection(db, `users/${userId}/sections`);
@@ -373,7 +428,7 @@ export function useAssetSummary(sheetId: string, userId: string) {
           cat.returnPercent = cat.invested > 0 ? (cat.return / cat.invested) * 100 : 0;
         });
 
-        setSummary({
+        const newSummary = {
           totalInvested,
           totalValue,
           totalReturn,
@@ -381,11 +436,15 @@ export function useAssetSummary(sheetId: string, userId: string) {
           dayChange,
           dayChangePercent,
           categories,
-        });
+        };
+        
+        setSummary(newSummary);
+        setSummaryCache(prev => ({ ...prev, [sheetId]: newSummary }));
+        setLastSheetId(sheetId);
         setLoading(false);
       } catch (err) {
         console.error('Error calculating summary:', err);
-        setSummary({
+        const errorSummary = {
           totalInvested: 0,
           totalValue: 0,
           totalReturn: 0,
@@ -393,13 +452,17 @@ export function useAssetSummary(sheetId: string, userId: string) {
           dayChange: 0,
           dayChangePercent: 0,
           categories: {},
-        });
+        };
+        
+        setSummary(errorSummary);
+        setSummaryCache(prev => ({ ...prev, [sheetId]: errorSummary }));
+        setLastSheetId(sheetId);
         setLoading(false);
       }
     };
 
     calculateSummary();
-  }, [sheetId, userId]);
+  }, [sheetId, userId, summary, lastSheetId, summaryCache]);
 
   return { summary, loading };
 }
