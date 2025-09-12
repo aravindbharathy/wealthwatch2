@@ -153,22 +153,31 @@ export default function AssetTable({
         {/* Top Drop Zone */}
         <TopDropZone sectionId={sectionId} />
 
-        {/* Asset Rows */}
-        {assets.map((asset, index) => (
-          <SortableAssetRow
-            key={asset.id}
-            asset={asset}
-            index={index}
-            isLastAsset={index === assets.length - 1}
-            isAuthenticated={isAuthenticated}
-            onEditAsset={onEditAsset}
-            onDeleteAsset={onDeleteAsset}
-            openPopup={openPopup}
-            formatCurrency={formatCurrency}
-            formatPercent={formatPercent}
-            getPerformanceIcon={getPerformanceIcon}
-          />
-        ))}
+        {/* Asset Rows with Inter-Asset Drop Zones */}
+        {assets.map((asset, index) => {
+          return (
+            <React.Fragment key={asset.id}>
+              {/* Drop zone before this asset */}
+              <InterAssetDropZone sectionId={sectionId} targetIndex={index} />
+              
+              <SortableAssetRow
+                asset={asset}
+                index={index}
+                isLastAsset={index === assets.length - 1}
+                isAuthenticated={isAuthenticated}
+                onEditAsset={onEditAsset}
+                onDeleteAsset={onDeleteAsset}
+                openPopup={openPopup}
+                formatCurrency={formatCurrency}
+                formatPercent={formatPercent}
+                getPerformanceIcon={getPerformanceIcon}
+              />
+            </React.Fragment>
+          );
+        })}
+        
+        {/* Drop zone after the last asset */}
+        <InterAssetDropZone sectionId={sectionId} targetIndex={assets.length} />
         
         {/* Bottom Drop Zone */}
         <BottomDropZone sectionId={sectionId} />
@@ -184,6 +193,7 @@ export default function AssetTable({
     </div>
   );
 }
+
 
 // Sortable Asset Row Component
 interface SortableAssetRowProps {
@@ -220,43 +230,27 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
     isDragging,
   } = useSortable({ id: asset.id });
 
-  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
-    id: asset.id,
-    data: {
-      type: 'asset',
-    },
-  });
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0 : 1,
+    visibility: (isDragging ? 'hidden' : 'visible') as 'hidden' | 'visible',
   };
 
   const totalReturnPercent = asset.costBasis > 0 ? 
     ((asset.currentValue - asset.costBasis) / asset.costBasis) * 100 : 0;
   const dayChange = asset.performance?.dayChange || 0;
 
-  // Combine sortable and droppable refs
-  const combinedRef = (node: HTMLDivElement | null) => {
-    setNodeRef(node);
-    setDroppableRef(node);
-  };
+  // Use sortable ref directly
 
   return (
     <div
-      ref={combinedRef}
+      ref={setNodeRef}
       style={style}
       className={`relative grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-2 px-2 hover:bg-gray-50 group transition-all duration-200 ${
         !isLastAsset ? 'border-b border-gray-100' : ''
-      } ${isDragging ? 'z-50' : ''} ${
-        isOver ? 'bg-blue-50' : ''
-      }`}
+      } ${isDragging ? 'z-50 pointer-events-none' : ''}`}
     >
-      {/* Drop Indicator Line */}
-      {isOver && (
-        <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 shadow-lg z-20"></div>
-      )}
       
       {/* Drag Handle */}
       <div className="flex justify-center">
@@ -323,6 +317,40 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
   );
 };
 
+// Inter-Asset Drop Zone Component  
+interface InterAssetDropZoneProps {
+  sectionId?: string;
+  targetIndex: number;
+}
+
+const InterAssetDropZone: React.FC<InterAssetDropZoneProps> = ({ sectionId, targetIndex }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `inter-${sectionId}-${targetIndex}`,
+    data: {
+      type: 'inter-asset',
+      sectionId,
+      targetIndex,
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`transition-all duration-200 ease-in-out ${
+        isOver 
+          ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
+          : 'h-1 bg-transparent'
+      }`}
+    >
+      {isOver && (
+        <div className="text-blue-600 text-sm font-medium opacity-70">
+          Drop asset here
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Top Drop Zone Component
 interface TopDropZoneProps {
   sectionId?: string;
@@ -340,10 +368,18 @@ const TopDropZone: React.FC<TopDropZoneProps> = ({ sectionId }) => {
   return (
     <div
       ref={setNodeRef}
-      className={`h-2 transition-colors ${
-        isOver ? 'bg-blue-200' : 'bg-transparent'
+      className={`transition-all duration-200 ease-in-out ${
+        isOver 
+          ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
+          : 'h-2 bg-transparent'
       }`}
-    />
+    >
+      {isOver && (
+        <div className="text-blue-600 text-sm font-medium opacity-70">
+          Drop asset here
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -364,10 +400,18 @@ const BottomDropZone: React.FC<BottomDropZoneProps> = ({ sectionId }) => {
   return (
     <div
       ref={setNodeRef}
-      className={`h-2 transition-colors ${
-        isOver ? 'bg-blue-200' : 'bg-transparent'
+      className={`transition-all duration-200 ease-in-out ${
+        isOver 
+          ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
+          : 'h-2 bg-transparent'
       }`}
-    />
+    >
+      {isOver && (
+        <div className="text-blue-600 text-sm font-medium opacity-70">
+          Drop asset here
+        </div>
+      )}
+    </div>
   );
 };
 

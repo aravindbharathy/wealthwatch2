@@ -75,7 +75,7 @@ export default function SectionItem({
     <div 
       ref={setDroppableRef}
       className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 overflow-visible ${
-        isOver ? 'border-blue-400 bg-blue-50 shadow-md scale-[1.02]' : 'border-gray-200'
+        isOver && assets.length === 0 ? 'border-blue-400 bg-blue-50 shadow-md' : 'border-gray-200'
       }`}
     >
 

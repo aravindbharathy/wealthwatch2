@@ -10,14 +10,13 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragOverEvent,
   DragOverlay,
   DragStartEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
-  SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import React, { useState } from 'react';
 
@@ -51,6 +50,17 @@ export default function SectionList({
   isAuthenticated = true,
 }: SectionListProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragOverInfo, setDragOverInfo] = useState<{
+    overId: string | null;
+    overType: string | null;
+    overSectionId: string | null;
+    targetIndex: number | null;
+  }>({
+    overId: null,
+    overType: null,
+    overSectionId: null,
+    targetIndex: null,
+  });
   const [optimisticAssetsBySection, setOptimisticAssetsBySection] = useState<{ [sectionId: string]: Asset[] }>(assetsBySection);
 
   // Sync optimistic assets with actual assets when they change
@@ -72,6 +82,56 @@ export default function SectionList({
   const handleDragStart = (event: DragStartEvent) => {
     const activeId = event.active.id as string;
     setActiveId(activeId);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    
+    if (!over) {
+      setDragOverInfo({
+        overId: null,
+        overType: null,
+        overSectionId: null,
+        targetIndex: null,
+      });
+      return;
+    }
+
+    // Determine the target section and index based on the drop target type
+    let overSectionId = '';
+    let targetIndex = 0;
+    const overType = over.data?.current?.type || '';
+
+    if (overType === 'section') {
+      overSectionId = over.id as string;
+      targetIndex = 0; // Beginning of section
+    } else if (overType === 'top-zone') {
+      overSectionId = over.data?.current?.sectionId || '';
+      targetIndex = 0; // Beginning of section
+    } else if (overType === 'bottom-zone') {
+      overSectionId = over.data?.current?.sectionId || '';
+      const targetAssets = optimisticAssetsBySection[overSectionId] || [];
+      targetIndex = targetAssets.length; // End of section
+    } else if (overType === 'inter-asset') {
+      overSectionId = over.data?.current?.sectionId || '';
+      targetIndex = over.data?.current?.targetIndex || 0;
+    }
+
+    // Find the source section of the dragged asset
+    let sourceSectionId = '';
+    for (const [sectionId, assets] of Object.entries(optimisticAssetsBySection)) {
+      if (assets.find(asset => asset.id === active.id)) {
+        sourceSectionId = sectionId;
+        break;
+      }
+    }
+
+    setDragOverInfo({
+      overId: over.id as string,
+      overType,
+      overSectionId,
+      targetIndex,
+    });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -110,27 +170,18 @@ export default function SectionList({
           targetSectionId = over.data.current.sectionId;
           const targetAssets = optimisticAssetsBySection[targetSectionId] || [];
           targetIndex = targetAssets.length;
-        } else if (over.data?.current?.type === 'asset') {
-          // Dropping on another asset
-          for (const [sectionId, assets] of Object.entries(optimisticAssetsBySection)) {
-            const index = assets.findIndex(asset => asset.id === over.id);
-            if (index !== -1) {
-              targetSectionId = sectionId;
-              // If dropping on the last asset, insert after it
-              // Otherwise, insert at that position (before the target asset)
-              targetIndex = index === assets.length - 1 ? index + 1 : index;
-              break;
-            }
-          }
+        } else if (over.data?.current?.type === 'inter-asset') {
+          // Dropping on inter-asset zone - use the exact target index
+          targetSectionId = over.data.current.sectionId;
+          targetIndex = over.data.current.targetIndex;
         } else {
           // Fallback: try to find the asset by ID
           for (const [sectionId, assets] of Object.entries(optimisticAssetsBySection)) {
             const index = assets.findIndex(asset => asset.id === over.id);
             if (index !== -1) {
               targetSectionId = sectionId;
-              // If dropping on the last asset, insert after it
-              // Otherwise, insert at that position (before the target asset)
-              targetIndex = index === assets.length - 1 ? index + 1 : index;
+              // Always insert before the target asset
+              targetIndex = index;
               break;
             }
           }
@@ -187,6 +238,12 @@ export default function SectionList({
     }
     
     setActiveId(null);
+    setDragOverInfo({
+      overId: null,
+      overType: null,
+      overSectionId: null,
+      targetIndex: null,
+    });
   };
   if (loading) {
     return (
@@ -239,19 +296,17 @@ export default function SectionList({
     );
   }
 
-  // Get all asset IDs for the sortable context
-  const allAssetIds = Object.values(optimisticAssetsBySection).flatMap(assets => assets.map(asset => asset.id));
-
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
       <div className="space-y-2 overflow-visible">
         {/* Sections */}
-        <SortableContext items={allAssetIds} strategy={verticalListSortingStrategy}>
+        <div>
           {sections.map((section) => (
             <SectionItem
               key={section.id}
@@ -268,7 +323,7 @@ export default function SectionList({
               isAuthenticated={isAuthenticated}
             />
           ))}
-        </SortableContext>
+        </div>
 
         {/* Add Section Button */}
         {isAuthenticated && (
@@ -288,7 +343,7 @@ export default function SectionList({
 
       <DragOverlay>
         {activeId ? (
-          <div className="bg-white border border-gray-200 rounded-lg shadow-xl opacity-95 p-2">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-xl opacity-95 p-2 pointer-events-none">
             <div className="font-medium text-gray-900">
               {(() => {
                 // Find the asset being dragged
