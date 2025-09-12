@@ -118,19 +118,3 @@ export {
   validateBatch
 } from './validation';
 
-// Seed data functions
-export {
-  seedTickers,
-  seedCategories,
-  seedUserData,
-  seedAllData,
-  clearAllData,
-  resetToSampleData,
-  sampleTickers,
-  sampleCategories,
-  createSampleUser,
-  createSampleAssets,
-  createSampleDebts,
-  createSampleAccounts,
-  createSampleGoals
-} from './seedData';

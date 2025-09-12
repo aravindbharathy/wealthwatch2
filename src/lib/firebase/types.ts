@@ -506,3 +506,41 @@ export interface UpdateAssetSectionInput {
   isExpanded?: boolean;
   order?: number;
 }
+
+// Portfolio Value Tracking Types
+export interface PortfolioValueEntry {
+  date: Timestamp;
+  totalValue: number;
+  totalInvested: number;
+  totalReturn: number;
+  totalReturnPercent: number;
+  assetCount: number;
+}
+
+export interface PortfolioValueHistory {
+  userId: string;
+  entries: PortfolioValueEntry[];
+  lastUpdated: Timestamp;
+  createdAt: Timestamp;
+}
+
+export interface PortfolioSummary {
+  currentValue: number;
+  totalInvested: number;
+  totalReturn: number;
+  totalReturnPercent: number;
+  dayChange: number;
+  dayChangePercent: number;
+  periodChange: number;
+  periodChangePercent: number;
+  periodStartDate: Timestamp;
+  periodEndDate: Timestamp;
+  assetCount: number;
+  lastUpdated: Timestamp;
+}
+
+export interface TimeRange {
+  label: string;
+  value: string;
+  months: number;
+}

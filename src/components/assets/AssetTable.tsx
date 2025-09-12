@@ -39,13 +39,28 @@ export default function AssetTable({
 
 
   const openPopup = (assetId: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
     const rect = event.currentTarget.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const popupWidth = 160; // min-w-[160px]
+    
+    // Calculate position to ensure popup stays within viewport
+    let left = rect.left + window.scrollX - popupWidth + rect.width;
+    if (left < 0) {
+      left = rect.left + window.scrollX;
+    }
+    if (left + popupWidth > viewportWidth) {
+      left = viewportWidth - popupWidth - 10;
+    }
+    
     setPopupState({
       isOpen: true,
       assetId,
       position: {
         top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX - 120, // Position to the left of the button
+        left: left,
       },
     });
   };
@@ -289,9 +304,14 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
       {isAuthenticated && (
         <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={(e) => openPopup(asset.id, e)}
-            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              openPopup(asset.id, e);
+            }}
+            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
             title="More options"
+            type="button"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
@@ -384,18 +404,21 @@ const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete
   return (
     <div
       ref={menuRef}
-      className="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]"
+      className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[160px]"
       style={{
         top: position.top,
         left: position.left,
       }}
     >
       <button
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           onEdit();
           onClose();
         }}
-        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
+        type="button"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -403,11 +426,14 @@ const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete
         <span>Edit</span>
       </button>
       <button
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           onDelete();
           onClose();
         }}
-        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
+        type="button"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

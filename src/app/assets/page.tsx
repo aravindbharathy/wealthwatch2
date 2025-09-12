@@ -3,10 +3,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { clearDuplicatesFromConsole } from '@/lib/firebase/clearDuplicates';
-import { useAssetSheets, useAssetSummary } from '@/lib/hooks/useAssetSheets';
+import { useAssetSheets } from '@/lib/hooks/useAssetSheets';
 import { useDemoAssetSheets, useDemoAssetSummary, useDemoSectionAssets } from '@/lib/hooks/useDemoAssets';
+import { usePortfolioValue } from '@/lib/hooks/usePortfolioValue';
 import { AssetSheet, AssetSection, Asset, CreateAssetInput, CreateAssetSheetInput, CreateAssetSectionInput } from '@/lib/firebase/types';
 import { createAsset, deleteAsset, reorderAssets } from '@/lib/firebase/firebaseUtils';
+import { initializePortfolioWithSampleData } from '@/lib/firebase/portfolioUtils';
 import { 
   collection, 
   getDocs, 
@@ -17,7 +19,7 @@ import {
 import { db } from '@/lib/firebase/firebase';
 import { config } from '@/lib/config';
 import { DEMO_USER_ID } from '@/lib/firebase/demoUserSetup';
-import SummaryBar from '@/components/assets/SummaryBar';
+import PortfolioValueSummary from '@/components/assets/PortfolioValueChart';
 import SheetTabs from '@/components/assets/SheetTabs';
 import SectionList from '@/components/assets/SectionList';
 import AddAssetModal from '@/components/assets/modals/AddAssetModal';
@@ -66,7 +68,14 @@ export default function AssetsPage() {
     deleteSection,
   } = useAssetSheets(effectiveUserId);
 
-  const { summary, loading: summaryLoading } = useAssetSummary(activeSheetId, effectiveUserId);
+
+  // Portfolio value tracking
+  const { 
+    portfolioHistory, 
+    loading: portfolioLoading, 
+    error: portfolioError,
+    refreshPortfolioValue 
+  } = usePortfolioValue(effectiveUserId);
 
   // Use demo mode if:
   // 1. No user and demo mode is enabled, OR  
@@ -193,8 +202,6 @@ export default function AssetsPage() {
   const currentSheets = sheets;
   const currentSheetsLoading = sheetsLoading;
   const currentSheetsError = sheetsError;
-  const currentSummary = summary;
-  const currentSummaryLoading = summaryLoading;
 
   
 
@@ -375,6 +382,8 @@ export default function AssetsPage() {
       if (result.success) {
         setIsAddAssetModalOpen(false);
         // The useAssetsForSections hook will automatically refresh and show the new asset
+        // Update portfolio value tracking
+        await refreshPortfolioValue();
       } else {
         console.error('Error creating asset:', result.error);
       }
@@ -395,6 +404,8 @@ export default function AssetsPage() {
         const result = await deleteAsset(effectiveUserId, assetId);
         if (result.success) {
           // The useAssetsForSections hook will automatically refresh and remove the asset
+          // Update portfolio value tracking
+          await refreshPortfolioValue();
         } else {
           console.error('Failed to delete asset:', result.error);
           alert('Failed to delete asset. Please try again.');
@@ -419,6 +430,17 @@ export default function AssetsPage() {
     } catch (error) {
       console.error('❌ Error reordering asset:', error);
       alert('An error occurred while reordering the asset. Please try again.');
+    }
+  };
+
+  const handleInitializePortfolio = async () => {
+    try {
+      await initializePortfolioWithSampleData(effectiveUserId);
+      await refreshPortfolioValue();
+      alert('Portfolio tracking initialized with sample data!');
+    } catch (error) {
+      console.error('Error initializing portfolio:', error);
+      alert('Failed to initialize portfolio tracking. Please try again.');
     }
   };
 
@@ -566,6 +588,14 @@ export default function AssetsPage() {
                 <p className="text-sm text-green-600">You&apos;re signed in as a demo user. All changes will be saved to the database.</p>
               </div>
               <div className="flex items-center gap-2">
+                {portfolioHistory.length === 0 && (
+                  <button
+                    onClick={handleInitializePortfolio}
+                    className="text-xs text-green-600 hover:text-green-800 underline"
+                  >
+                    Initialize Portfolio Tracking
+                  </button>
+                )}
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   Demo User
                 </span>
@@ -574,8 +604,11 @@ export default function AssetsPage() {
           </div>
         )}
 
-        {/* Summary Bar */}
-        <SummaryBar summary={currentSummary} loading={currentSummaryLoading} />
+        {/* Portfolio Value Summary */}
+        <PortfolioValueSummary 
+          portfolioHistory={portfolioHistory} 
+          loading={portfolioLoading} 
+        />
 
         {/* Sheet Tabs */}
         <SheetTabs
@@ -663,12 +696,12 @@ export default function AssetsPage() {
                 <span className="text-xs text-gray-500">16 accounts</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {currentSummary ? new Intl.NumberFormat('en-US', {
+                {portfolioHistory.length > 0 ? new Intl.NumberFormat('en-US', {
                   style: 'currency',
                   currency: 'USD',
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0,
-                }).format(currentSummary.totalValue) : '$0'}
+                }).format(portfolioHistory[portfolioHistory.length - 1].totalValue) : '$0'}
               </span>
             </div>
             
@@ -698,12 +731,12 @@ export default function AssetsPage() {
                 <span className="text-xs text-gray-500">Assets - Debts</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {currentSummary ? new Intl.NumberFormat('en-US', {
+                {portfolioHistory.length > 0 ? new Intl.NumberFormat('en-US', {
                   style: 'currency',
                   currency: 'USD',
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0,
-                }).format(currentSummary.totalValue - 1023853) : '$0'}
+                }).format(portfolioHistory[portfolioHistory.length - 1].totalValue - 1023853) : '$0'}
               </span>
             </div>
           </div>
