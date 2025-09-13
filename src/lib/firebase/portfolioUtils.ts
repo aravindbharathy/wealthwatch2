@@ -35,7 +35,10 @@ export async function calculatePortfolioValue(userId: string): Promise<{
     assetsSnapshot.forEach((doc) => {
       const asset = doc.data() as Asset;
       totalValue += asset.currentValue || 0;
-      totalInvested += asset.costBasis || 0;
+      // Only include assets with cost basis in return calculations
+      if (asset.costBasis && asset.costBasis > 0) {
+        totalInvested += asset.costBasis;
+      }
       assetCount++;
     });
     

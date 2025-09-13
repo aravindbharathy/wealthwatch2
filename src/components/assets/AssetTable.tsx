@@ -252,8 +252,8 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
     visibility: (isDragging ? 'hidden' : 'visible') as 'hidden' | 'visible',
   };
 
-  const totalReturnPercent = asset.costBasis > 0 ? 
-    ((asset.currentValue - asset.costBasis) / asset.costBasis) * 100 : 0;
+  const totalReturnPercent = asset.costBasis && asset.costBasis > 0 ? 
+    ((asset.currentValue - asset.costBasis) / asset.costBasis) * 100 : null;
   const dayChange = asset.performance?.dayChange || 0;
 
   // Use sortable ref directly
@@ -291,17 +291,21 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
 
       {/* IRR */}
       <div className={`text-right text-sm font-medium ${
-        totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
+        totalReturnPercent !== null ? (totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'
       }`}>
-        {formatPercent(totalReturnPercent)}
+        {totalReturnPercent !== null ? formatPercent(totalReturnPercent) : '--'}
       </div>
 
       {/* Cost Basis */}
       <div className="text-right text-sm font-medium text-gray-900">
-        <CurrencyFormattedValue 
-          amount={asset.costBasis} 
-          className="text-sm font-medium text-gray-900"
-        />
+        {asset.costBasis && asset.costBasis > 0 ? (
+          <CurrencyFormattedValue 
+            amount={asset.costBasis} 
+            className="text-sm font-medium text-gray-900"
+          />
+        ) : (
+          <span className="text-gray-400">--</span>
+        )}
       </div>
 
       {/* Value */}

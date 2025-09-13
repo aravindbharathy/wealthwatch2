@@ -181,8 +181,10 @@ export const calculatePortfolioPerformance = (
   const monthChangePercent = monthValue > 0 ? (monthChange / monthValue) * 100 : 0;
   const yearChangePercent = yearValue > 0 ? (yearChange / yearValue) * 100 : 0;
 
-  // Calculate total return (from cost basis)
-  const totalCostBasis = assets.reduce((sum, asset) => sum + asset.costBasis, 0);
+  // Calculate total return (from cost basis) - only include assets with cost basis
+  const totalCostBasis = assets.reduce((sum, asset) => {
+    return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+  }, 0);
   const totalReturn = currentNetWorth - totalCostBasis;
   const totalReturnPercent = totalCostBasis > 0 ? (totalReturn / totalCostBasis) * 100 : 0;
 

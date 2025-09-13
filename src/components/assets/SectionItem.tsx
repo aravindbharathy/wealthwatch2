@@ -62,7 +62,11 @@ export default function SectionItem({
   // Format currency values when assets change
   useEffect(() => {
     const formatValues = async () => {
-      const totalInvested = assets.reduce((sum, asset) => sum + asset.costBasis, 0);
+      // Only include assets with cost basis in total invested calculation
+      const totalInvested = assets.reduce((sum, asset) => {
+        return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+      }, 0);
+      // Include all assets in total value calculation
       const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
       
       try {
@@ -98,7 +102,9 @@ export default function SectionItem({
     return null;
   };
 
-  const totalInvested = assets.reduce((sum, asset) => sum + asset.costBasis, 0);
+  const totalInvested = assets.reduce((sum, asset) => {
+    return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+  }, 0);
   const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
   const totalReturn = totalValue - totalInvested;
   const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
@@ -111,13 +117,14 @@ export default function SectionItem({
       }`}
     >
 
-      {/* Section Header */}
+      {/* Section Header - Using same grid as asset table for perfect alignment */}
       <div 
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 relative"
+        className="cursor-pointer hover:bg-gray-50 relative"
         onClick={() => onToggle(section.id)}
       >
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
+        <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-3 px-2">
+          {/* Toggle Icon */}
+          <div className="flex justify-center">
             <svg 
               className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
                 section.isExpanded ? 'rotate-180' : ''
@@ -128,74 +135,82 @@ export default function SectionItem({
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
+          </div>
+          
+          {/* Section Name */}
+          <div className="flex items-center">
             <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
           </div>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          {/* Summary Stats */}
-          <div className="flex items-center space-x-4 text-sm">
-            <span className="text-gray-600">
-              Invested: {formattedValues?.totalInvested || '$0'}
-            </span>
-            <span className={`font-medium ${
-              totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {formatPercent(totalReturnPercent)}
-            </span>
-            <span className="text-gray-900 font-medium">
-              {formattedValues?.totalValue || '$0'}
-            </span>
+          
+          {/* Summary Stats - Aligned with table columns */}
+          <div className={`flex justify-end font-medium ${
+            totalInvested > 0 ? (totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'
+          }`}>
+            {totalInvested > 0 ? formatPercent(totalReturnPercent) : '--'}
           </div>
-
+          <div className="flex justify-end items-center text-gray-900 font-medium">
+            {!section.isExpanded && (
+              <span className="text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5">CB</span>
+            )}
+            {formattedValues?.totalInvested || '$0'}
+          </div>
+          <div className="flex justify-end items-center text-gray-900 font-medium">
+            {!section.isExpanded && (
+              <span className="text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5">V</span>
+            )}
+            {formattedValues?.totalValue || '$0'}
+          </div>
+          
           {/* Actions Menu */}
-          {isAuthenticated && (
-            <div className="relative">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowActions(!showActions);
-                }}
-                className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
-                title="Section options"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                </svg>
-              </button>
+          <div className="flex justify-center">
+            {isAuthenticated && (
+              <div className="relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowActions(!showActions);
+                  }}
+                  className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Section options"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                  </svg>
+                </button>
 
-              {showActions && (
-                <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[160px] z-10">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditSection(section.id);
-                      setShowActions(false);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteSection(section.id);
-                      setShowActions(false);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    <span>Delete</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+                {showActions && (
+                  <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[160px] z-10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditSection(section.id);
+                        setShowActions(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSection(section.id);
+                        setShowActions(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -151,21 +151,26 @@ export interface AssetSummary {
 #### 5. SectionItem (`src/components/assets/SectionItem.tsx`)
 - **Purpose**: Individual section with collapsible functionality
 - **Features**:
-  - Expand/collapse sections
-  - Section summary display
-  - Asset table integration
+  - Expand/collapse sections with animated chevron icons
+  - Section summary display with perfect grid alignment
+  - Contextual badges (CB/V) shown only when collapsed
+  - Asset table integration with matching grid layout
   - Section actions menu (conditional on authentication)
   - Add asset button (conditional on authentication)
   - Authentication state propagation to AssetTable
+  - Smart cost basis calculations excluding assets without cost basis
 
 #### 6. AssetTable (`src/components/assets/AssetTable.tsx`)
 - **Purpose**: Display assets in table format
 - **Features**:
-  - Sortable columns (Asset, IRR, Value)
-  - Performance indicators
+  - Perfect grid alignment with section headers
+  - Smart cost basis display (shows "--" when no cost basis)
+  - IRR calculations excluding assets without cost basis
+  - Performance indicators with color coding
   - Action buttons (edit, delete) - conditional on authentication
   - Drag and drop support (prepared)
   - Authentication-aware UI rendering
+  - Consistent column structure: [Drag Handle, Asset Name, IRR, Cost Basis, Value, Actions]
 
 ### Modal Components
 
@@ -263,26 +268,35 @@ const isAuthenticated = Boolean(user || isDemoUser);
 
 2. **Section Organization**
    - Create and manage sections within sheets (authentication required)
-   - Collapsible/expandable sections
-   - Section-level summaries
+   - Collapsible/expandable sections with animated chevron icons
+   - Section-level summaries with perfect grid alignment
+   - Contextual badges (CB/V) for collapsed sections
    - Authentication-based access control
 
 3. **Asset Management**
    - Add, edit, and delete assets (authentication required)
    - Multiple asset types (stocks, crypto, real estate, etc.)
-   - Performance tracking and calculations
+   - Smart cost basis handling (shows "--" when no cost basis)
+   - Performance tracking and calculations excluding assets without cost basis
    - Authentication-aware action buttons
 
 4. **Real-time Updates**
    - Live data synchronization
    - Automatic summary calculations
    - Performance metrics updates
+   - Smart return calculations
 
 5. **Authentication-based Access Control**
    - Read-only mode for signed-out users
    - Full functionality for authenticated users (including demo users)
    - Conditional UI rendering based on authentication state
    - Clear messaging to guide users to sign in
+
+6. **Advanced UI Features**
+   - Perfect grid alignment between section headers and asset tables
+   - Contextual badges that appear only when needed
+   - Smart data display (handles missing cost basis gracefully)
+   - Consistent visual hierarchy and spacing
 
 ### Advanced Features
 
@@ -294,7 +308,8 @@ const isAuthenticated = Boolean(user || isDemoUser);
 2. **Performance Indicators**
    - Color-coded returns (green/red)
    - Up/down arrows for day changes
-   - Percentage calculations
+   - Smart percentage calculations excluding assets without cost basis
+   - "--" display for assets without meaningful return calculations
 
 3. **Responsive Design**
    - Mobile-friendly interface
@@ -334,7 +349,32 @@ The implementation follows a consistent design system:
 - Consistent padding: p-4, p-6
 - Section spacing: space-y-4
 - Table row spacing: py-3
+
+/* Grid Layout */
+- Section headers and asset tables use identical grid: grid-cols-[16px_1fr_64px_120px_120px_40px]
+- Perfect alignment between section summaries and table columns
+- Consistent gap-4 spacing throughout
 ```
+
+### Section Header Design
+
+#### Grid Alignment System
+- **Perfect Column Alignment**: Section headers use the same CSS grid as asset tables
+- **Column Structure**: [Toggle Icon, Section Name, IRR, Cost Basis, Value, Actions]
+- **Responsive Layout**: Maintains alignment across different screen sizes
+
+#### Contextual Badges
+- **CB Badge**: Small gray badge with "CB" label for Cost Basis
+- **V Badge**: Small gray badge with "V" label for Value
+- **Conditional Display**: Badges only appear when section is collapsed
+- **Styling**: `text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5`
+- **Spacing**: 6px margin-right for optimal visual separation
+
+#### Smart Cost Basis Handling
+- **Assets without Cost Basis**: Display "--" instead of "$0.00"
+- **Return Calculations**: Exclude assets without cost basis from IRR calculations
+- **Section Summaries**: Only include assets with valid cost basis in total invested calculations
+- **Visual Consistency**: Maintains clean appearance while providing accurate data
 
 ### Custom CSS Classes
 
@@ -347,6 +387,16 @@ The implementation follows a consistent design system:
 /* Interactive elements */
 .section-header { @apply cursor-pointer transition-colors duration-150; }
 .sheet-tab { @apply relative transition-all duration-200; }
+
+/* Grid alignment system */
+.grid-aligned { 
+  @apply grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-3 px-2;
+}
+
+/* Badge styling */
+.contextual-badge {
+  @apply text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5;
+}
 
 /* Loading animations */
 .shimmer {
@@ -624,6 +674,62 @@ src/
 - **Mobile Responsive**: iOS and Android
 - **Progressive Enhancement**: Works without JavaScript (basic)
 
+## Recent UI Improvements
+
+### Grid Alignment System (Latest Update)
+The most significant recent improvement is the implementation of a perfect grid alignment system between section headers and asset tables:
+
+#### Technical Implementation
+- **Unified Grid Layout**: Both section headers and asset tables use `grid-cols-[16px_1fr_64px_120px_120px_40px]`
+- **Consistent Spacing**: `gap-4` and `px-2` padding throughout
+- **Perfect Alignment**: Values in section headers align exactly with their corresponding table columns
+
+#### Visual Benefits
+- **Professional Appearance**: Clean, spreadsheet-like interface
+- **Improved Readability**: Easy to scan and compare values
+- **Consistent Experience**: Uniform layout across all sections
+
+### Smart Cost Basis Handling
+Enhanced data display logic for better user experience:
+
+#### Features
+- **Graceful Degradation**: Assets without cost basis show "--" instead of "$0.00"
+- **Accurate Calculations**: Return percentages exclude assets without cost basis
+- **Section Summaries**: Only include assets with valid cost basis in totals
+- **Visual Consistency**: Maintains clean appearance while providing accurate data
+
+#### Implementation Details
+```typescript
+// Cost basis calculation excluding assets without cost basis
+const totalInvested = assets.reduce((sum, asset) => {
+  return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+}, 0);
+
+// IRR display logic
+{totalInvested > 0 ? formatPercent(totalReturnPercent) : '--'}
+```
+
+### Contextual Badge System
+Smart badge display that adapts to user context:
+
+#### Design
+- **CB Badge**: Small gray badge for "Cost Basis" identification
+- **V Badge**: Small gray badge for "Value" identification
+- **Conditional Display**: Only appears when section is collapsed
+- **Optimal Spacing**: 6px margin-right for perfect visual separation
+
+#### Styling
+```css
+.contextual-badge {
+  @apply text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5;
+}
+```
+
+#### User Experience Benefits
+- **Contextual Help**: Badges provide clarity when column headers aren't visible
+- **Clean Expanded View**: No visual clutter when section is expanded
+- **Professional Design**: Subtle, unobtrusive styling
+
 ## Future Enhancements
 
 ### Planned Features
@@ -653,6 +759,10 @@ Key achievements include:
 - **Flexible User Experience**: Support for signed-out viewing, demo users, and authenticated users
 - **Data Persistence**: Demo users get persistent data storage in Firebase
 - **Clear User Guidance**: Appropriate messaging and UI states for different authentication levels
+- **Perfect Grid Alignment**: Section headers and asset tables use identical CSS grid layouts
+- **Smart Data Handling**: Graceful handling of assets without cost basis
+- **Contextual UI Elements**: Badges appear only when needed (collapsed sections)
+- **Professional Visual Design**: Consistent spacing, typography, and color coding
 
 ---
 
