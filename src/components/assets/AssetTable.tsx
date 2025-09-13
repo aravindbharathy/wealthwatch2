@@ -343,7 +343,7 @@ const InterAssetDropZone: React.FC<InterAssetDropZoneProps> = ({ sectionId, targ
       className={`transition-all duration-200 ease-in-out ${
         isOver 
           ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
-          : 'h-3 bg-transparent py-1'
+          : 'h-0 bg-transparent'
       }`}
     >
       {isOver && (
