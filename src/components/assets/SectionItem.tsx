@@ -14,6 +14,7 @@ interface SectionItemProps {
   onDeleteSection: (sectionId: string) => void;
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
+  onMoveAsset?: (assetId: string) => void;
   onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
   loading?: boolean;
   isAuthenticated?: boolean;
@@ -29,6 +30,7 @@ export default function SectionItem({
   onDeleteSection,
   onEditAsset,
   onDeleteAsset,
+  onMoveAsset,
   onReorderAssets,
   loading = false,
   isAuthenticated = true,
@@ -186,6 +188,7 @@ export default function SectionItem({
               assets={assets}
               onEditAsset={onEditAsset}
               onDeleteAsset={onDeleteAsset}
+              onMoveAsset={onMoveAsset}
               onReorderAssets={onReorderAssets}
               loading={loading}
               isAuthenticated={isAuthenticated}

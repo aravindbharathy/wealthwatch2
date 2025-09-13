@@ -12,6 +12,7 @@ interface AssetTableProps {
   assets: Asset[];
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
+  onMoveAsset?: (assetId: string) => void;
   onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
   loading?: boolean;
   isAuthenticated?: boolean;
@@ -23,6 +24,7 @@ export default function AssetTable({
   assets,
   onEditAsset,
   onDeleteAsset,
+  onMoveAsset,
   onReorderAssets,
   loading = false,
   isAuthenticated = true,
@@ -172,6 +174,7 @@ export default function AssetTable({
                 isAuthenticated={isAuthenticated}
                 onEditAsset={onEditAsset}
                 onDeleteAsset={onDeleteAsset}
+                onMoveAsset={onMoveAsset}
                 openPopup={openPopup}
                 formatCurrency={formatCurrency}
                 formatPercent={formatPercent}
@@ -192,6 +195,7 @@ export default function AssetTable({
           onClose={closePopup}
           onEdit={() => popupState.assetId && onEditAsset(popupState.assetId)}
           onDelete={() => popupState.assetId && onDeleteAsset(popupState.assetId)}
+          onMove={() => popupState.assetId && onMoveAsset?.(popupState.assetId)}
           position={popupState.position}
         />
     </div>
@@ -207,6 +211,7 @@ interface SortableAssetRowProps {
   isAuthenticated: boolean;
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
+  onMoveAsset?: (assetId: string) => void;
   openPopup: (assetId: string, event: React.MouseEvent) => void;
   formatCurrency: (amount: number) => string;
   formatPercent: (percent: number) => string;
@@ -220,6 +225,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
   isAuthenticated,
   onEditAsset,
   onDeleteAsset,
+  onMoveAsset,
   openPopup,
   formatCurrency,
   formatPercent,
@@ -361,10 +367,11 @@ interface PopupMenuProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onMove?: () => void;
   position: { top: number; left: number };
 }
 
-const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete, position }) => {
+const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete, onMove, position }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -409,6 +416,23 @@ const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete
         </svg>
         <span>Edit</span>
       </button>
+      {onMove && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onMove();
+            onClose();
+          }}
+          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
+          type="button"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+          <span>Move</span>
+        </button>
+      )}
       <button
         onClick={(e) => {
           e.preventDefault();

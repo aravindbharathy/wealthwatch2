@@ -29,6 +29,7 @@ interface SectionListProps {
   onDeleteSection: (sectionId: string) => void;
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
+  onMoveAsset?: (assetId: string) => void;
   onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
   onAddSection: () => void;
   loading?: boolean;
@@ -44,6 +45,7 @@ export default function SectionList({
   onDeleteSection,
   onEditAsset,
   onDeleteAsset,
+  onMoveAsset,
   onReorderAssets,
   onAddSection,
   loading = false,
@@ -302,6 +304,7 @@ export default function SectionList({
               onDeleteSection={onDeleteSection}
               onEditAsset={onEditAsset}
               onDeleteAsset={onDeleteAsset}
+              onMoveAsset={onMoveAsset}
               onReorderAssets={onReorderAssets}
               loading={loading}
               isAuthenticated={isAuthenticated}

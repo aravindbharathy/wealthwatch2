@@ -25,6 +25,7 @@ import SectionList from '@/components/assets/SectionList';
 import AddAssetModal from '@/components/assets/modals/AddAssetModal';
 import AddSectionModal from '@/components/assets/modals/AddSectionModal';
 import AddSheetModal from '@/components/assets/modals/AddSheetModal';
+import MoveAssetModal from '@/components/assets/modals/MoveAssetModal';
 
 export default function AssetsPage() {
   const { user, isDemoUser, signInAsDemo } = useAuthNew();
@@ -36,8 +37,11 @@ export default function AssetsPage() {
   const [isAddAssetModalOpen, setIsAddAssetModalOpen] = useState(false);
   const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false);
   const [isAddSheetModalOpen, setIsAddSheetModalOpen] = useState(false);
+  const [isMoveAssetModalOpen, setIsMoveAssetModalOpen] = useState(false);
   const [selectedSectionId, setSelectedSectionId] = useState<string>('');
   const [editingAssetId, setEditingAssetId] = useState<string>('');
+  const [movingAsset, setMovingAsset] = useState<Asset | null>(null);
+  const [notificationMessage, setNotificationMessage] = useState<string>('');
 
   // Demo mode hooks
   const {
@@ -433,6 +437,24 @@ export default function AssetsPage() {
     }
   };
 
+  const handleMoveAsset = (assetId: string) => {
+    // Find the asset in the current assets
+    const asset = Object.values(assetsBySection)
+      .flat()
+      .find(a => a.id === assetId);
+    
+    if (asset) {
+      setMovingAsset(asset);
+      setIsMoveAssetModalOpen(true);
+    }
+  };
+
+  const handleMoveSuccess = (message: string) => {
+    setNotificationMessage(message);
+    // Clear notification after 3 seconds
+    setTimeout(() => setNotificationMessage(''), 3000);
+  };
+
   const handleInitializePortfolio = async () => {
     try {
       await initializePortfolioWithSampleData(effectiveUserId);
@@ -631,6 +653,7 @@ export default function AssetsPage() {
           onDeleteSection={handleDeleteSection}
           onEditAsset={handleEditAsset}
           onDeleteAsset={handleDeleteAsset}
+          onMoveAsset={handleMoveAsset}
           onReorderAssets={handleReorderAssets}
           onAddSection={handleAddSection}
           loading={currentSheetsLoading && currentSheets.length === 0}
@@ -762,6 +785,24 @@ export default function AssetsPage() {
         onSubmit={handleCreateAsset}
         sectionId={selectedSectionId}
       />
+
+      <MoveAssetModal
+        isOpen={isMoveAssetModalOpen}
+        onClose={() => {
+          setIsMoveAssetModalOpen(false);
+          setMovingAsset(null);
+        }}
+        asset={movingAsset}
+        currentSheetId={activeSheetId}
+        onSuccess={handleMoveSuccess}
+      />
+
+      {/* Notification */}
+      {notificationMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity duration-300">
+          {notificationMessage}
+        </div>
+      )}
     </div>
   );
 }
