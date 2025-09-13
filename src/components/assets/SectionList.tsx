@@ -305,6 +305,7 @@ export default function SectionList({
               onReorderAssets={onReorderAssets}
               loading={loading}
               isAuthenticated={isAuthenticated}
+              activeAssetId={activeId}
             />
           ))}
         </div>

@@ -17,6 +17,7 @@ interface SectionItemProps {
   onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
   loading?: boolean;
   isAuthenticated?: boolean;
+  activeAssetId?: string | null;
 }
 
 export default function SectionItem({
@@ -31,6 +32,7 @@ export default function SectionItem({
   onReorderAssets,
   loading = false,
   isAuthenticated = true,
+  activeAssetId,
 }: SectionItemProps) {
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: section.id,
@@ -74,7 +76,7 @@ export default function SectionItem({
   return (
     <div 
       ref={setDroppableRef}
-      className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 overflow-visible ${
+      className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 overflow-visible mb-6 ${
         isOver && assets.length === 0 ? 'border-blue-400 bg-blue-50 shadow-md' : 'border-gray-200'
       }`}
     >
@@ -176,6 +178,7 @@ export default function SectionItem({
               loading={loading}
               isAuthenticated={isAuthenticated}
               sectionId={section.id}
+              activeAssetId={activeAssetId}
             />
           </div>
 

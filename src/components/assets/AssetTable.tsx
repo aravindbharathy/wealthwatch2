@@ -16,6 +16,7 @@ interface AssetTableProps {
   loading?: boolean;
   isAuthenticated?: boolean;
   sectionId?: string;
+  activeAssetId?: string | null;
 }
 
 export default function AssetTable({
@@ -26,6 +27,7 @@ export default function AssetTable({
   loading = false,
   isAuthenticated = true,
   sectionId,
+  activeAssetId,
 }: AssetTableProps) {
   const [popupState, setPopupState] = useState<{
     isOpen: boolean;
@@ -152,10 +154,16 @@ export default function AssetTable({
 
         {/* Asset Rows with Inter-Asset Drop Zones */}
         {assets.map((asset, index) => {
+          const isActiveAsset = asset.id === activeAssetId;
+          const prevAsset = index > 0 ? assets[index - 1] : null;
+          const isPrevAssetActive = prevAsset?.id === activeAssetId;
+          
           return (
             <React.Fragment key={asset.id}>
-              {/* Drop zone before this asset */}
-              <InterAssetDropZone sectionId={sectionId} targetIndex={index} />
+              {/* Drop zone before this asset - skip if current or previous asset is being dragged */}
+              {!isActiveAsset && !isPrevAssetActive && (
+                <InterAssetDropZone sectionId={sectionId} targetIndex={index} />
+              )}
               
               <SortableAssetRow
                 asset={asset}
@@ -173,8 +181,10 @@ export default function AssetTable({
           );
         })}
         
-        {/* Drop zone after the last asset */}
-        <InterAssetDropZone sectionId={sectionId} targetIndex={assets.length} />
+        {/* Drop zone after the last asset - only if section has assets and last asset is not being dragged */}
+        {assets.length > 0 && assets[assets.length - 1]?.id !== activeAssetId && (
+          <InterAssetDropZone sectionId={sectionId} targetIndex={assets.length} />
+        )}
         
         {/* Popup Menu */}
         <PopupMenu
@@ -333,7 +343,7 @@ const InterAssetDropZone: React.FC<InterAssetDropZoneProps> = ({ sectionId, targ
       className={`transition-all duration-200 ease-in-out ${
         isOver 
           ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
-          : 'h-1 bg-transparent'
+          : 'h-3 bg-transparent py-1'
       }`}
     >
       {isOver && (
