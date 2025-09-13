@@ -23,6 +23,7 @@ import { DEMO_USER_ID } from '@/lib/firebase/demoUserSetup';
 import PortfolioValueSummary from '@/components/assets/PortfolioValueChart';
 import SheetTabs from '@/components/assets/SheetTabs';
 import SectionList from '@/components/assets/SectionList';
+import SheetInsights from '@/components/assets/SheetInsights';
 import AddAssetModal from '@/components/assets/modals/AddAssetModal';
 import AddSectionModal from '@/components/assets/modals/AddSectionModal';
 import AddSheetModal from '@/components/assets/modals/AddSheetModal';
@@ -256,6 +257,12 @@ export default function AssetsPage() {
 
   // Get assets by section using the new hook
   const { assetsBySection, loading: assetsLoading, error: assetsError } = useAssetsForSections(sections, effectiveUserId);
+
+  // Get assets for the current sheet only
+  const currentSheetAssets = useMemo(() => {
+    if (!sections.length) return [];
+    return sections.flatMap(section => assetsBySection[section.id] || []);
+  }, [sections, assetsBySection]);
 
   // Set active sheet when sheets load
   useEffect(() => {
@@ -693,44 +700,15 @@ export default function AssetsPage() {
 
       {/* Right Sidebar */}
       <div className="w-full lg:w-80 space-y-6">
-        {/* Complete Accounts Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-900">COMPLETE ACCOUNTS</h3>
-            <button className="text-xs text-gray-500 hover:text-gray-700">Dismiss</button>
-          </div>
-          
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 mb-4">
-            <h4 className="font-medium text-gray-900 mb-2">Complete your financial picture.</h4>
-            <p className="text-sm text-gray-600 mb-4">
-              To get a complete sense of your net worth, add all the accounts that make up your full financial picture.
-            </p>
-            
-            {/* Bank Logos */}
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">AM</span>
-              </div>
-              <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">BA</span>
-              </div>
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">CH</span>
-              </div>
-              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">WF</span>
-              </div>
-            </div>
-            
-            <button className="w-full bg-gray-900 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-gray-800 transition-colors">
-              Add more accounts
-            </button>
-          </div>
-        </div>
+        <SheetInsights 
+          currentSheetAssets={currentSheetAssets} 
+          loading={assetsLoading}
+          sheetName={activeSheet?.name}
+        />
 
-        {/* Summary Section */}
+        {/* Net Worth Summary Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-4">SUMMARY</h3>
+          <h3 className="text-sm font-medium text-gray-900 mb-4">Net Worth</h3>
           
           <p className="text-sm text-gray-600 mb-4">
             This is how your net worth is calculated. Make sure all of your accounts are connected for an accurate summary.
@@ -775,8 +753,7 @@ export default function AssetsPage() {
                     <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <span className="text-sm font-medium text-gray-700">Net Worth</span>
-                <span className="text-xs text-gray-500">Assets - Debts</span>
+                <span className="text-sm font-medium text-gray-700">Total Net Worth</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
                 {formattedSummaryValues?.netWorth || '$0'}
