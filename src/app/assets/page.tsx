@@ -6,6 +6,7 @@ import { clearDuplicatesFromConsole } from '@/lib/firebase/clearDuplicates';
 import { useAssetSheets } from '@/lib/hooks/useAssetSheets';
 import { useDemoAssetSheets, useDemoAssetSummary, useDemoSectionAssets } from '@/lib/hooks/useDemoAssets';
 import { usePortfolioValue } from '@/lib/hooks/usePortfolioValue';
+import { useCurrency } from '@/lib/hooks/useCurrency';
 import { AssetSheet, AssetSection, Asset, CreateAssetInput, CreateAssetSheetInput, CreateAssetSectionInput } from '@/lib/firebase/types';
 import { createAsset, deleteAsset, reorderAssets } from '@/lib/firebase/firebaseUtils';
 import { initializePortfolioWithSampleData } from '@/lib/firebase/portfolioUtils';
@@ -29,9 +30,14 @@ import MoveAssetModal from '@/components/assets/modals/MoveAssetModal';
 
 export default function AssetsPage() {
   const { user, isDemoUser, signInAsDemo } = useAuthNew();
+  const { formatCurrency } = useCurrency();
   const [activeSheetId, setActiveSheetId] = useState<string>('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [demoMode, setDemoMode] = useState<boolean>(config.features.enableDemoMode);
+  const [formattedSummaryValues, setFormattedSummaryValues] = useState<{
+    assets: string;
+    netWorth: string;
+  } | null>(null);
   
   // Modal states
   const [isAddAssetModalOpen, setIsAddAssetModalOpen] = useState(false);
@@ -80,6 +86,30 @@ export default function AssetsPage() {
     error: portfolioError,
     refreshPortfolioValue 
   } = usePortfolioValue(effectiveUserId);
+
+  // Format summary values when portfolio history changes
+  useEffect(() => {
+    const formatSummaryValues = async () => {
+      if (portfolioHistory.length > 0) {
+        const latestValue = portfolioHistory[portfolioHistory.length - 1];
+        const assetsValue = await formatCurrency(latestValue.totalValue);
+        const netWorthValue = await formatCurrency(latestValue.totalValue - 1023853); // Subtract debts
+        
+        setFormattedSummaryValues({
+          assets: assetsValue,
+          netWorth: netWorthValue,
+        });
+      } else {
+        const zeroValue = await formatCurrency(0);
+        setFormattedSummaryValues({
+          assets: zeroValue,
+          netWorth: zeroValue,
+        });
+      }
+    };
+
+    formatSummaryValues();
+  }, [portfolioHistory, formatCurrency]);
 
   // Use demo mode if:
   // 1. No user and demo mode is enabled, OR  
@@ -719,12 +749,7 @@ export default function AssetsPage() {
                 <span className="text-xs text-gray-500">16 accounts</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {portfolioHistory.length > 0 ? new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'USD',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                }).format(portfolioHistory[portfolioHistory.length - 1].totalValue) : '$0'}
+                {formattedSummaryValues?.assets || '$0'}
               </span>
             </div>
             
@@ -754,12 +779,7 @@ export default function AssetsPage() {
                 <span className="text-xs text-gray-500">Assets - Debts</span>
               </div>
               <span className="text-sm font-medium text-gray-900">
-                {portfolioHistory.length > 0 ? new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'USD',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                }).format(portfolioHistory[portfolioHistory.length - 1].totalValue - 1023853) : '$0'}
+                {formattedSummaryValues?.netWorth || '$0'}
               </span>
             </div>
           </div>

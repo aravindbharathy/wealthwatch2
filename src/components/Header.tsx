@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { getPreferredCurrency, setPreferredCurrency } from "@/lib/preferences";
+import { useCurrency } from "@/lib/hooks/useCurrency";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -10,8 +10,8 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { user, isDemoUser, signOut } = useAuth();
+  const { preferredCurrency, setPreferredCurrency, isLoading: currencyLoading } = useCurrency();
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [isUpdating, setIsUpdating] = useState(false);
   const currencyRef = useRef<HTMLDivElement>(null);
 
@@ -28,14 +28,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
     { code: "SGD", symbol: "S$", name: "Singapore Dollar" }
   ];
 
-  // Load preferred currency on mount
-  useEffect(() => {
-    const loadPreferredCurrency = async () => {
-      const currency = await getPreferredCurrency(user?.uid);
-      setSelectedCurrency(currency);
-    };
-    loadPreferredCurrency();
-  }, [user?.uid]);
+  // No need to load currency here anymore - it's handled by the CurrencyContext
 
   // Close currency dropdown when clicking outside
   useEffect(() => {
@@ -54,12 +47,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const handleCurrencyChange = async (currency: string) => {
     setIsUpdating(true);
     try {
-      await setPreferredCurrency(currency, user?.uid);
-      setSelectedCurrency(currency);
+      await setPreferredCurrency(currency);
       setIsCurrencyOpen(false);
-      
-      // Trigger a page refresh to update all currency displays
-      window.location.reload();
+      // No need to reload the page - the context will update all components
     } catch (error) {
       console.error('Error updating currency preference:', error);
     } finally {
@@ -93,10 +83,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
               className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="text-sm font-medium">
-                {currencies.find(c => c.code === selectedCurrency)?.symbol || '$'}
+                {currencies.find(c => c.code === preferredCurrency)?.symbol || '$'}
               </span>
               <span className="text-sm text-gray-700">
-                {selectedCurrency}
+                {preferredCurrency}
               </span>
               {isUpdating ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
@@ -120,7 +110,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                       key={currency.code}
                       onClick={() => handleCurrencyChange(currency.code)}
                       className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center space-x-3 ${
-                        selectedCurrency === currency.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                        preferredCurrency === currency.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
                       }`}
                     >
                       <span className="font-medium">{currency.symbol}</span>

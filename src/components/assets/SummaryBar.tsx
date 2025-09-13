@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { AssetSummary } from '@/lib/firebase/types';
+import { useCurrency } from '@/lib/hooks/useCurrency';
 
 interface SummaryBarProps {
   summary: AssetSummary | null;
@@ -8,6 +10,43 @@ interface SummaryBarProps {
 }
 
 export default function SummaryBar({ summary, loading }: SummaryBarProps) {
+  const { formatCurrency, preferredCurrency, isLoading: currencyLoading } = useCurrency();
+  const [formattedValues, setFormattedValues] = useState<{
+    totalValue: string;
+    totalInvested: string;
+    totalReturn: string;
+    categories: Record<string, string>;
+  } | null>(null);
+
+  // Format currency values when summary or currency changes
+  useEffect(() => {
+    const formatValues = async () => {
+      if (!summary) return;
+
+      try {
+        const totalValue = await formatCurrency(summary.totalValue);
+        const totalInvested = await formatCurrency(summary.totalInvested);
+        const totalReturn = await formatCurrency(summary.totalReturn);
+        
+        const categories: Record<string, string> = {};
+        for (const [key, category] of Object.entries(summary.categories)) {
+          categories[key] = await formatCurrency(category.value);
+        }
+
+        setFormattedValues({
+          totalValue,
+          totalInvested,
+          totalReturn,
+          categories,
+        });
+      } catch (error) {
+        console.error('Error formatting currency values:', error);
+      }
+    };
+
+    formatValues();
+  }, [summary, formatCurrency]);
+
   // If loading and we have no summary, show loading placeholders
   if (loading && !summary) {
     return (
@@ -35,14 +74,21 @@ export default function SummaryBar({ summary, loading }: SummaryBarProps) {
     );
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Show loading state while formatting currency
+  if (!formattedValues || currencyLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="flex space-x-8">
+            <div className="h-4 bg-gray-200 rounded w-32"></div>
+            <div className="h-4 bg-gray-200 rounded w-32"></div>
+            <div className="h-4 bg-gray-200 rounded w-32"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const formatPercent = (percent: number) => {
     const sign = percent >= 0 ? '+' : '';
@@ -64,7 +110,7 @@ export default function SummaryBar({ summary, loading }: SummaryBarProps) {
         </div>
         <div className="text-right">
           <div className="text-3xl font-bold text-gray-900">
-            {formatCurrency(summary.totalValue)}
+            {formattedValues.totalValue}
           </div>
           <div className={`text-sm flex items-center justify-end ${
             summary.totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
@@ -80,7 +126,7 @@ export default function SummaryBar({ summary, loading }: SummaryBarProps) {
           <div key={key} className="text-center">
             <div className="text-sm text-gray-600 mb-1">{category.name}</div>
             <div className="text-lg font-semibold text-gray-900">
-              {formatCurrency(category.value)}
+              {formattedValues.categories[key]}
             </div>
             <div className={`text-xs ${
               category.returnPercent >= 0 ? 'text-green-600' : 'text-red-600'
@@ -95,10 +141,10 @@ export default function SummaryBar({ summary, loading }: SummaryBarProps) {
       <div className="mt-6 pt-6 border-t border-gray-200">
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-600">
-            Invested: {formatCurrency(summary.totalInvested)}
+            Invested: {formattedValues.totalInvested}
           </div>
           <div className="text-sm text-gray-600">
-            Return: {formatCurrency(summary.totalReturn)}
+            Return: {formattedValues.totalReturn}
           </div>
           <div className={`text-sm ${
             summary.dayChangePercent >= 0 ? 'text-green-600' : 'text-red-600'

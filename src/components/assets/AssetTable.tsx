@@ -7,6 +7,8 @@ import {
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { useCurrency } from '@/lib/hooks/useCurrency';
+import CurrencyFormattedValue from '@/components/CurrencyFormattedValue';
 
 interface AssetTableProps {
   assets: Asset[];
@@ -31,6 +33,7 @@ export default function AssetTable({
   sectionId,
   activeAssetId,
 }: AssetTableProps) {
+  const { formatCurrency: formatCurrencyUtil } = useCurrency();
   const [popupState, setPopupState] = useState<{
     isOpen: boolean;
     assetId: string | null;
@@ -79,9 +82,11 @@ export default function AssetTable({
 
 
   const formatCurrency = (amount: number) => {
+    // For now, we'll use a synchronous approach with a fallback
+    // In a real implementation, you might want to pre-format all values
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'USD', // This will be updated to use preferred currency
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -145,7 +150,7 @@ export default function AssetTable({
   return (
     <div className="space-y-0">
         {/* Table Header */}
-        <div className="grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-3 px-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+        <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-3 px-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
           <div></div>
           <div className="text-left">ASSET</div>
           <div className="text-right">IRR</div>
@@ -257,7 +262,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-2 px-2 hover:bg-gray-50 group transition-all duration-200 ${
+      className={`relative grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-2 px-2 hover:bg-gray-50 group transition-all duration-200 ${
         !isLastAsset ? 'border-b border-gray-100' : ''
       } ${isDragging ? 'z-50 pointer-events-none' : ''}`}
     >
@@ -293,14 +298,20 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
 
       {/* Cost Basis */}
       <div className="text-right text-sm font-medium text-gray-900">
-        {formatCurrency(asset.costBasis)}
+        <CurrencyFormattedValue 
+          amount={asset.costBasis} 
+          className="text-sm font-medium text-gray-900"
+        />
       </div>
 
       {/* Value */}
       <div className="text-right text-sm font-medium text-gray-900">
         <div className="flex items-center justify-end space-x-1">
           {getPerformanceIcon(dayChange)}
-          <span>{formatCurrency(asset.currentValue)}</span>
+          <CurrencyFormattedValue 
+            amount={asset.currentValue} 
+            className="text-sm font-medium text-gray-900"
+          />
         </div>
       </div>
 

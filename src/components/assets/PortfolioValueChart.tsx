@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PortfolioValueEntry } from '@/lib/firebase/types';
+import { useCurrency } from '@/lib/hooks/useCurrency';
 
 interface PortfolioValueSummaryProps {
   portfolioHistory: PortfolioValueEntry[];
@@ -9,18 +10,38 @@ interface PortfolioValueSummaryProps {
 }
 
 export default function PortfolioValueSummary({ portfolioHistory, loading = false }: PortfolioValueSummaryProps) {
+  const { formatCurrency, isLoading: currencyLoading } = useCurrency();
+  const [formattedValues, setFormattedValues] = useState<{
+    totalValue: string;
+    totalInvested: string;
+    totalReturn: string;
+  } | null>(null);
+
   // Calculate current portfolio data
   const currentData = portfolioHistory.length > 0 ? portfolioHistory[portfolioHistory.length - 1] : null;
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Format currency values when data or currency changes
+  useEffect(() => {
+    const formatValues = async () => {
+      if (!currentData) return;
+
+      try {
+        const totalValue = await formatCurrency(currentData.totalValue);
+        const totalInvested = await formatCurrency(currentData.totalInvested);
+        const totalReturn = await formatCurrency(currentData.totalReturn);
+
+        setFormattedValues({
+          totalValue,
+          totalInvested,
+          totalReturn,
+        });
+      } catch (error) {
+        console.error('Error formatting currency values:', error);
+      }
+    };
+
+    formatValues();
+  }, [currentData, formatCurrency]);
 
   // Format percentage
   const formatPercent = (percent: number) => {
@@ -28,7 +49,7 @@ export default function PortfolioValueSummary({ portfolioHistory, loading = fals
     return `${sign}${percent.toFixed(1)}%`;
   };
 
-  if (loading) {
+  if (loading || currencyLoading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="animate-pulse">
@@ -45,23 +66,23 @@ export default function PortfolioValueSummary({ portfolioHistory, loading = fals
     );
   }
 
-  if (!currentData) {
+  if (!currentData || !formattedValues) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-2">Total assets value</h2>
         <div className="flex items-center gap-6">
           <div className="text-3xl font-bold text-gray-900">
-            {formatCurrency(0)}
+            {formattedValues?.totalValue || '$0'}
           </div>
           <div className="flex items-center gap-4 text-sm">
             <div>
               <span className="text-gray-500">Total invested: </span>
-              <span className="font-medium text-gray-900">{formatCurrency(0)}</span>
+              <span className="font-medium text-gray-900">{formattedValues?.totalInvested || '$0'}</span>
             </div>
             <div>
               <span className="text-gray-500">Total return: </span>
               <span className="font-medium text-gray-900">
-                {formatCurrency(0)} (0.0%)
+                {formattedValues?.totalReturn || '$0'} (0.0%)
               </span>
             </div>
           </div>
@@ -75,17 +96,17 @@ export default function PortfolioValueSummary({ portfolioHistory, loading = fals
       <h2 className="text-lg font-medium text-gray-900 mb-2">Total assets value</h2>
       <div className="flex items-center gap-6">
         <div className="text-3xl font-bold text-gray-900">
-          {formatCurrency(currentData.totalValue)}
+          {formattedValues.totalValue}
         </div>
         <div className="flex items-center gap-4 text-sm">
           <div>
             <span className="text-gray-500">Total invested: </span>
-            <span className="font-medium text-gray-900">{formatCurrency(currentData.totalInvested)}</span>
+            <span className="font-medium text-gray-900">{formattedValues.totalInvested}</span>
           </div>
           <div>
             <span className="text-gray-500">Total return: </span>
             <span className={`font-medium ${currentData.totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(currentData.totalReturn)} ({formatPercent(currentData.totalReturnPercent)})
+              {formattedValues.totalReturn} ({formatPercent(currentData.totalReturnPercent)})
             </span>
           </div>
         </div>

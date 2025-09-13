@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { AuthProviderNew as AuthProvider } from "../lib/contexts/AuthContext";
+import { CurrencyProvider } from "../lib/contexts/CurrencyContext";
 // import { testDemoUserSetup } from "../lib/firebase/demoUserUtils";
 import { testDemoUserSetup as testDemoUser } from "../lib/firebase/demoUserTest";
 import { testFirebaseConnection } from "../lib/firebase/firebaseTest";
@@ -78,21 +79,23 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gray-50">
-        {/* Sidebar */}
-        <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
-        
-        {/* Main content area */}
-        <div className={`transition-all duration-300 overflow-visible ${sidebarOpen ? "ml-64" : "ml-0 lg:ml-16"}`}>
-          {/* Header */}
-          <Header onMenuClick={toggleSidebar} />
+      <CurrencyProvider>
+        <div className="min-h-screen bg-gray-50">
+          {/* Sidebar */}
+          <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
           
-          {/* Page content */}
-          <main className="p-6 overflow-visible">
-            {children}
-          </main>
+          {/* Main content area */}
+          <div className={`transition-all duration-300 overflow-visible ${sidebarOpen ? "ml-64" : "ml-0 lg:ml-16"}`}>
+            {/* Header */}
+            <Header onMenuClick={toggleSidebar} />
+            
+            {/* Page content */}
+            <main className="p-6 overflow-visible">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
+      </CurrencyProvider>
     </AuthProvider>
   );
 }

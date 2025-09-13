@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AssetSection, Asset } from '@/lib/firebase/types';
 import AssetTable from './AssetTable';
 import { useDroppable } from '@dnd-kit/core';
+import { useCurrency } from '@/lib/hooks/useCurrency';
 
 interface SectionItemProps {
   section: AssetSection;
@@ -36,6 +37,12 @@ export default function SectionItem({
   isAuthenticated = true,
   activeAssetId,
 }: SectionItemProps) {
+  const { formatCurrency } = useCurrency();
+  const [formattedValues, setFormattedValues] = useState<{
+    totalInvested: string;
+    totalValue: string;
+  } | null>(null);
+
   // Only create drop zone for empty sections to prevent blue rectangle flickering
   const isSectionEmpty = assets.length === 0;
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
@@ -47,19 +54,32 @@ export default function SectionItem({
   });
   const [showActions, setShowActions] = useState(false);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
   const formatPercent = (percent: number) => {
     const sign = percent >= 0 ? '+' : '';
     return `${sign}${percent.toFixed(1)}%`;
   };
+
+  // Format currency values when assets change
+  useEffect(() => {
+    const formatValues = async () => {
+      const totalInvested = assets.reduce((sum, asset) => sum + asset.costBasis, 0);
+      const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
+      
+      try {
+        const formattedInvested = await formatCurrency(totalInvested);
+        const formattedValue = await formatCurrency(totalValue);
+        
+        setFormattedValues({
+          totalInvested: formattedInvested,
+          totalValue: formattedValue,
+        });
+      } catch (error) {
+        console.error('Error formatting currency values:', error);
+      }
+    };
+
+    formatValues();
+  }, [assets, formatCurrency]);
 
   const getPerformanceIcon = (change: number) => {
     if (change > 0) {
@@ -116,7 +136,7 @@ export default function SectionItem({
           {/* Summary Stats */}
           <div className="flex items-center space-x-4 text-sm">
             <span className="text-gray-600">
-              Invested: {formatCurrency(totalInvested)}
+              Invested: {formattedValues?.totalInvested || '$0'}
             </span>
             <span className={`font-medium ${
               totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600'
@@ -124,7 +144,7 @@ export default function SectionItem({
               {formatPercent(totalReturnPercent)}
             </span>
             <span className="text-gray-900 font-medium">
-              {formatCurrency(totalValue)}
+              {formattedValues?.totalValue || '$0'}
             </span>
           </div>
 
