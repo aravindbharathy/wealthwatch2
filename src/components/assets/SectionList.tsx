@@ -105,13 +105,6 @@ export default function SectionList({
     if (overType === 'section') {
       overSectionId = over.id as string;
       targetIndex = 0; // Beginning of section
-    } else if (overType === 'top-zone') {
-      overSectionId = over.data?.current?.sectionId || '';
-      targetIndex = 0; // Beginning of section
-    } else if (overType === 'bottom-zone') {
-      overSectionId = over.data?.current?.sectionId || '';
-      const targetAssets = optimisticAssetsBySection[overSectionId] || [];
-      targetIndex = targetAssets.length; // End of section
     } else if (overType === 'inter-asset') {
       overSectionId = over.data?.current?.sectionId || '';
       targetIndex = over.data?.current?.targetIndex || 0;
@@ -161,15 +154,6 @@ export default function SectionList({
           // Dropping on section header - add to beginning
           targetSectionId = over.id as string;
           targetIndex = 0;
-        } else if (over.data?.current?.type === 'top-zone') {
-          // Dropping on top zone - add to beginning of section
-          targetSectionId = over.data.current.sectionId;
-          targetIndex = 0;
-        } else if (over.data?.current?.type === 'bottom-zone') {
-          // Dropping on bottom zone - add to end of section
-          targetSectionId = over.data.current.sectionId;
-          const targetAssets = optimisticAssetsBySection[targetSectionId] || [];
-          targetIndex = targetAssets.length;
         } else if (over.data?.current?.type === 'inter-asset') {
           // Dropping on inter-asset zone - use the exact target index
           targetSectionId = over.data.current.sectionId;

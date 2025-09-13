@@ -150,9 +150,6 @@ export default function AssetTable({
           <div></div>
         </div>
 
-        {/* Top Drop Zone */}
-        <TopDropZone sectionId={sectionId} />
-
         {/* Asset Rows with Inter-Asset Drop Zones */}
         {assets.map((asset, index) => {
           return (
@@ -178,9 +175,6 @@ export default function AssetTable({
         
         {/* Drop zone after the last asset */}
         <InterAssetDropZone sectionId={sectionId} targetIndex={assets.length} />
-        
-        {/* Bottom Drop Zone */}
-        <BottomDropZone sectionId={sectionId} />
         
         {/* Popup Menu */}
         <PopupMenu
@@ -340,70 +334,6 @@ const InterAssetDropZone: React.FC<InterAssetDropZoneProps> = ({ sectionId, targ
         isOver 
           ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
           : 'h-1 bg-transparent'
-      }`}
-    >
-      {isOver && (
-        <div className="text-blue-600 text-sm font-medium opacity-70">
-          Drop asset here
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Top Drop Zone Component
-interface TopDropZoneProps {
-  sectionId?: string;
-}
-
-const TopDropZone: React.FC<TopDropZoneProps> = ({ sectionId }) => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `top-${sectionId}`,
-    data: {
-      type: 'top-zone',
-      sectionId,
-    },
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`transition-all duration-200 ease-in-out ${
-        isOver 
-          ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
-          : 'h-2 bg-transparent'
-      }`}
-    >
-      {isOver && (
-        <div className="text-blue-600 text-sm font-medium opacity-70">
-          Drop asset here
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Bottom Drop Zone Component
-interface BottomDropZoneProps {
-  sectionId?: string;
-}
-
-const BottomDropZone: React.FC<BottomDropZoneProps> = ({ sectionId }) => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `bottom-${sectionId}`,
-    data: {
-      type: 'bottom-zone',
-      sectionId,
-    },
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`transition-all duration-200 ease-in-out ${
-        isOver 
-          ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
-          : 'h-2 bg-transparent'
       }`}
     >
       {isOver && (
