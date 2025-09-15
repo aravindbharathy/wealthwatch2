@@ -179,6 +179,7 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
         const mergedStock = {
           ...stock,
           ...stockWithPrice,
+          name: stock.name || stockWithPrice.name, // Preserve name from search results
           country: stock.country || stockWithPrice.country,
           sector: stock.sector || stockWithPrice.sector,
           industry: stock.industry || stockWithPrice.industry,

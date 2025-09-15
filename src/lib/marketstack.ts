@@ -78,6 +78,27 @@ export interface EODResponse {
   data: EODData[];
 }
 
+// Add intraday data interface (similar to EODData but for intraday)
+export interface IntradayData {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  symbol: string;
+  exchange_code: string;
+  name: string;
+  asset_type: string;
+  price_currency: string;
+  exchange: string;
+}
+
+export interface IntradayResponse {
+  pagination: Pagination;
+  data: IntradayData[];
+}
+
 export interface TickerInfo {
   name: string;
   ticker: string;
@@ -211,7 +232,7 @@ export async function searchTickers(params: SearchParams): Promise<StockSearchRe
   }
 }
 
-// Function to get latest price for a symbol
+// Function to get latest price for a symbol (EOD data)
 export async function getLatestPrice(symbol: string): Promise<EODData | null> {
   try {
     const response: AxiosResponse<EODResponse> = await marketstackAPI.get('/eod/latest', {
@@ -239,6 +260,35 @@ export async function getLatestPrice(symbol: string): Promise<EODData | null> {
   }
 }
 
+// Function to get latest intraday price (real-time data)
+export async function getLatestIntradayPrice(symbol: string): Promise<IntradayData | null> {
+  try {
+    const response: AxiosResponse<IntradayResponse> = await marketstackAPI.get('/intraday/latest', {
+      params: {
+        symbols: symbol,
+        interval: '1min',
+      },
+    });
+    
+    if (response.data.data && response.data.data.length > 0) {
+      return response.data.data[0];
+    }
+    return null;
+  } catch (error: any) {
+    console.error('Error fetching latest intraday price:', error);
+    
+    // Check if it's a 422 error (unprocessable content)
+    if (error.response?.status === 422) {
+      const errorData = error.response.data;
+      if (errorData?.error?.code === 'no_valid_symbols_provided') {
+        throw new Error(`Symbol "${symbol}" is not valid or has no intraday data available`);
+      }
+    }
+    
+    throw error;
+  }
+}
+
 // Function to get detailed ticker information
 export async function getTickerInfo(ticker: string): Promise<TickerInfo | null> {
   try {
@@ -253,11 +303,23 @@ export async function getTickerInfo(ticker: string): Promise<TickerInfo | null> 
   }
 }
 
-// Function to get current price with full stock information
+// Updated function to get current price with full stock information
+// Tries intraday first for real-time data, falls back to EOD if intraday fails
 export async function getStockWithPrice(symbol: string): Promise<StockSearchResult | null> {
   try {
-    // Get the latest price data
-    const priceData = await getLatestPrice(symbol);
+    let priceData: EODData | IntradayData | null = null;
+    
+    // Try intraday first for real-time data
+    try {
+      priceData = await getLatestIntradayPrice(symbol);
+      console.log(`Using intraday data for ${symbol}`);
+    } catch (intradayError) {
+      console.warn(`Intraday data not available for ${symbol}, falling back to EOD:`, intradayError);
+      // Fall back to EOD data
+      priceData = await getLatestPrice(symbol);
+      console.log(`Using EOD data for ${symbol}`);
+    }
+    
     if (!priceData) return null;
     
     const exchangeCode = priceData.exchange || '';

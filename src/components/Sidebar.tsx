@@ -101,8 +101,8 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
       </nav>
 
       {/* Demo User Section */}
-      {!user && (
-        <div className="mt-6 px-4">
+      <div className="mt-6 px-4">
+        {!user ? (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             {isOpen ? (
               <div>
@@ -134,30 +134,30 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
               </button>
             )}
           </div>
-        </div>
-      )}
-
-      {/* Demo User Indicator */}
-      {isDemoUser && (
-        <div className="mt-6 px-4">
+        ) : isDemoUser ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             {isOpen ? (
               <div>
-                <h3 className="text-sm font-medium text-green-800 mb-1">Demo User</h3>
-                <p className="text-xs text-green-600">
-                  All changes are saved to the database
+                <h3 className="text-sm font-medium text-green-800 mb-2">Demo User Active</h3>
+                <p className="text-xs text-green-600 mb-3">
+                  You're signed in as a demo user. All changes will be saved to the database.
                 </p>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Demo User
+                  </span>
+                </div>
               </div>
             ) : (
-              <div className="flex justify-center">
+              <div className="flex items-center justify-center">
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   Demo
                 </span>
               </div>
             )}
           </div>
-        </div>
-      )}
+        ) : null}
+      </div>
       </div>
     </>
   );
