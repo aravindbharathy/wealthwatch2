@@ -93,9 +93,6 @@ export function useConsolidatedAssets(userId: string) {
           ...doc.data()
         })) as Asset[];
 
-        console.log('🔍 Debug - Raw assets data:', assets.slice(0, 2)); // Log first 2 assets for debugging
-        console.log('🔍 Debug - Sheets:', sheets);
-        console.log('🔍 Debug - Sections:', sections);
 
         // Get all debts
         const debtsRef = collection(db, `users/${userId}/debts`);
@@ -146,13 +143,6 @@ export function useConsolidatedAssets(userId: string) {
             groupKey
           };
 
-          // Debug individual asset processing
-          if (asset.id === assets[0]?.id) {
-            console.log('🔍 Debug - Processing first asset:', {
-              original: asset,
-              processed: processedAsset
-            });
-          }
 
           return processedAsset;
         });
@@ -191,7 +181,6 @@ export function useConsolidatedAssets(userId: string) {
         const finalAssets = Array.from(groupedAssets.values())
           .sort((a, b) => b.currentValue - a.currentValue);
 
-        console.log('🔍 Debug - Final consolidated assets:', finalAssets.slice(0, 2)); // Log first 2 consolidated assets
 
         // Process debts with safe number handling
         const processedDebts: ConsolidatedDebt[] = debts.map(debt => {
@@ -241,15 +230,6 @@ export function useConsolidatedAssets(userId: string) {
         
         const dayChangePercent = totalAssets > 0 ? (dayChange / totalAssets) * 100 : 0;
 
-        console.log('🔍 Debug - Summary calculation:', {
-          totalAssets,
-          totalDebts,
-          netWorth,
-          totalReturn,
-          totalReturnPercent,
-          dayChange,
-          dayChangePercent
-        });
 
         setConsolidatedAssets(finalAssets);
         setConsolidatedDebts(processedDebts);

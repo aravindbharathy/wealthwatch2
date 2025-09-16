@@ -14,13 +14,6 @@ interface ConsolidatedTableProps {
 export default function ConsolidatedTable({ assets, debts, summary, loading }: ConsolidatedTableProps) {
   const [showDebts, setShowDebts] = useState(false);
 
-  // Debug logging
-  console.log('🔍 ConsolidatedTable received props:', {
-    assets: assets?.length || 0,
-    debts: debts?.length || 0,
-    summary,
-    loading
-  });
 
   if (loading) {
     return (
@@ -97,7 +90,6 @@ export default function ConsolidatedTable({ assets, debts, summary, loading }: C
             <div className="text-right">
               <div className="text-2xl font-bold text-gray-900">
                 <CurrencyFormattedValue amount={summary.netWorth || 0} />
-                {/* Debug: {JSON.stringify({ netWorth: summary.netWorth })} */}
               </div>
               <div className={`text-sm ${(summary.dayChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {(summary.dayChange || 0) >= 0 ? '+' : ''}<CurrencyFormattedValue amount={summary.dayChange || 0} />

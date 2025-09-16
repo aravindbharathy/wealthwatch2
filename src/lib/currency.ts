@@ -94,10 +94,7 @@ export async function getCurrencyRates(
 
 // Format currency amount
 export function formatCurrency(amount: number, currency: string): string {
-  console.log('🔍 formatCurrency called with:', { amount, currency, type: typeof amount });
-  
   if (isNaN(amount) || amount === null || amount === undefined) {
-    console.log('🔍 formatCurrency: Invalid amount, returning $0');
     return '$0';
   }
   
@@ -108,9 +105,7 @@ export function formatCurrency(amount: number, currency: string): string {
     maximumFractionDigits: 2,
   });
   
-  const result = formatter.format(amount);
-  console.log('🔍 formatCurrency result:', result);
-  return result;
+  return formatter.format(amount);
 }
 
 // Get currency symbol

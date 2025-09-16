@@ -25,12 +25,8 @@ export default function CurrencyFormattedValue({
       try {
         setIsLoading(true);
         
-        // Debug logging
-        console.log('🔍 CurrencyFormattedValue received amount:', amount, 'type:', typeof amount);
-        
         // Handle NaN, null, undefined values
         if (amount === null || amount === undefined || isNaN(amount)) {
-          console.log('🔍 CurrencyFormattedValue: Using fallback due to invalid amount:', amount);
           setFormattedValue(fallback || '$0');
           setIsLoading(false);
           return;
