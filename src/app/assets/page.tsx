@@ -255,7 +255,15 @@ export default function AssetsPage() {
     return sections;
   }, [activeSheet?.id, activeSheet?.sections]);
 
-  // Get assets by section using the new hook
+  // Get all sections across all sheets for SheetTabs
+  const allSections = useMemo(() => {
+    return currentSheets.flatMap(sheet => sheet.sections || []);
+  }, [currentSheets]);
+
+  // Get assets by section for all sheets (for SheetTabs)
+  const { assetsBySection: allAssetsBySection } = useAssetsForSections(allSections, effectiveUserId);
+
+  // Get assets by section for current sheet only (for SectionList)
   const { assetsBySection, loading: assetsLoading, error: assetsError } = useAssetsForSections(sections, effectiveUserId);
 
   // Get assets for the current sheet only
@@ -654,6 +662,7 @@ export default function AssetsPage() {
           onRenameSheet={handleRenameSheet}
           onDeleteSheet={handleDeleteSheet}
           isAuthenticated={Boolean(user || isDemoUser)}
+          assetsBySection={allAssetsBySection}
         />
 
         {/* Section List */}

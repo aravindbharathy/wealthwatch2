@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { AssetSheet } from '@/lib/firebase/types';
+import { AssetSheet, Asset } from '@/lib/firebase/types';
+import { useCurrency } from '@/lib/hooks/useCurrency';
 
 
 interface SheetTabsProps {
@@ -13,6 +14,7 @@ interface SheetTabsProps {
   onRenameSheet?: (sheetId: string, newName: string) => void;
   onDeleteSheet?: (sheetId: string) => void;
   isAuthenticated?: boolean;
+  assetsBySection?: { [sectionId: string]: Asset[] };
 }
 
 export default function SheetTabs({
@@ -23,13 +25,42 @@ export default function SheetTabs({
   onRenameSheet,
   onDeleteSheet,
   isAuthenticated = true,
+  assetsBySection = {},
 }: SheetTabsProps) {
+  const { formatCurrency } = useCurrency();
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showDropdown, setShowDropdown] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const [formattedSheetValues, setFormattedSheetValues] = useState<{ [sheetId: string]: string }>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+
+  // Calculate total value for each sheet
+  const calculateSheetValue = (sheet: AssetSheet): number => {
+    if (!sheet.sections) return 0;
+    
+    return sheet.sections.reduce((total, section) => {
+      const sectionAssets = assetsBySection[section.id] || [];
+      return total + sectionAssets.reduce((sectionTotal, asset) => sectionTotal + asset.currentValue, 0);
+    }, 0);
+  };
+
+  // Format sheet values when sheets or assets change
+  useEffect(() => {
+    const formatSheetValues = async () => {
+      const newFormattedValues: { [sheetId: string]: string } = {};
+      
+      for (const sheet of sheets) {
+        const totalValue = calculateSheetValue(sheet);
+        newFormattedValues[sheet.id] = await formatCurrency(totalValue);
+      }
+      
+      setFormattedSheetValues(newFormattedValues);
+    };
+
+    formatSheetValues();
+  }, [sheets, assetsBySection, formatCurrency]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -116,73 +147,108 @@ export default function SheetTabs({
     }
   };
 
+  // Get color for sheet based on index
+  const getSheetColor = (index: number, isActive: boolean) => {
+    if (isActive) {
+      return {
+        bar: 'bg-pink-500', // Bright pink for active sheet
+        text: 'text-gray-900',
+        valueText: 'text-gray-900',
+        bg: 'bg-pink-50'
+      };
+    } else {
+      return {
+        bar: 'bg-purple-300', // Light purple for inactive sheets
+        text: 'text-gray-700',
+        valueText: 'text-gray-600',
+        bg: 'bg-white'
+      };
+    }
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 relative">
-      <div className="flex items-center border-b border-gray-200">
-        {/* Sheet Tabs */}
-        <div className="flex-1 flex overflow-x-auto overflow-y-visible relative">
-          {sheets.map((sheet) => (
-            <div
-              key={sheet.id}
-              className={`flex items-center group relative ${
-                activeSheetId === sheet.id
-                  ? 'bg-blue-50 border-b-2 border-blue-500'
-                  : 'hover:bg-gray-50'
-              }`}
-            >
-              <button
-                onClick={() => onSheetChange(sheet.id)}
-                className="px-6 py-4 text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none"
-              >
-                {editingSheetId === sheet.id ? (
-                  <input
-                    type="text"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onBlur={handleRenameSave}
-                    onKeyDown={handleKeyPress}
-                    className="bg-transparent border-none outline-none text-sm font-medium"
-                    autoFocus
-                  />
-                ) : (
-                  sheet.name
-                )}
-              </button>
-              
-              {/* Sheet Actions Menu */}
-              {isAuthenticated && (onRenameSheet || (onDeleteSheet && sheets.length > 1)) && (
-                <div className="relative">
+    <div className="mb-6 relative">
+      {/* Scenario-style Sheet Display */}
+      <div className="flex items-center gap-3">
+        {/* Sheet Cards */}
+        <div className="flex gap-3">
+          {sheets.map((sheet, index) => {
+            const isActive = activeSheetId === sheet.id;
+            const colors = getSheetColor(index, isActive);
+            const sheetValue = formattedSheetValues[sheet.id] || '$0';
+            
+            return (
+              <div key={sheet.id} className="relative">
+                <div
+                  className={`flex items-center group cursor-pointer transition-all duration-200 hover:scale-105 ${colors.bg} rounded-lg border-2 ${
+                    isActive ? 'border-pink-200 shadow-sm' : 'border-gray-200 hover:border-purple-200'
+                  } p-3 min-w-[160px]`}
+                >
+                  {/* Main sheet content - clickable area */}
                   <button
-                    ref={(el) => { buttonRefs.current[sheet.id] = el; }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDropdownToggle(sheet.id);
-                    }}
-                    className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600"
-                    title="Sheet options"
+                    onClick={() => onSheetChange(sheet.id)}
+                    className="flex items-center flex-1 text-left"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
+                    {/* Vertical Color Bar */}
+                    <div className={`w-1 h-8 ${colors.bar} rounded-full mr-3`}></div>
+                    
+                    {/* Sheet Info */}
+                    <div className="flex-1">
+                      {editingSheetId === sheet.id ? (
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onBlur={handleRenameSave}
+                          onKeyDown={handleKeyPress}
+                          className="bg-transparent border-none outline-none text-sm font-bold w-full"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className={`text-sm font-bold ${colors.text} mb-1`}>
+                          {sheet.name}
+                        </div>
+                      )}
+                      <div className={`text-xs ${colors.valueText}`}>
+                        {sheetValue}
+                      </div>
+                    </div>
                   </button>
+
+                  {/* Sheet Actions Menu - separate from main button */}
+                  {isAuthenticated && (onRenameSheet || (onDeleteSheet && sheets.length > 1)) && (
+                    <div className="relative ml-2">
+                      <button
+                        ref={(el) => { buttonRefs.current[sheet.id] = el; }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDropdownToggle(sheet.id);
+                        }}
+                        className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Sheet options"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
 
         {/* Add New Sheet Button */}
         {isAuthenticated && (
           <button
             onClick={onAddSheet}
-            className="px-6 py-4 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-l border-gray-200 focus:outline-none"
+            className="flex items-center justify-center w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all duration-200 hover:scale-105"
+            title="Add new sheet"
           >
-            <div className="flex items-center space-x-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span>New Sheet</span>
-            </div>
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
           </button>
         )}
       </div>
