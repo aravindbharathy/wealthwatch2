@@ -35,6 +35,12 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
       value: "$0.00"
     },
     {
+      name: "Nexus",
+      href: "/nexus",
+      icon: "🔗",
+      value: "$0.00"
+    },
+    {
       name: "Accounts",
       href: "/accounts",
       icon: "🏦",

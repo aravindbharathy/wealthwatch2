@@ -24,24 +24,37 @@ export default function CurrencyFormattedValue({
     const formatValue = async () => {
       try {
         setIsLoading(true);
+        
+        // Debug logging
+        console.log('🔍 CurrencyFormattedValue received amount:', amount, 'type:', typeof amount);
+        
+        // Handle NaN, null, undefined values
+        if (amount === null || amount === undefined || isNaN(amount)) {
+          console.log('🔍 CurrencyFormattedValue: Using fallback due to invalid amount:', amount);
+          setFormattedValue(fallback || '$0');
+          setIsLoading(false);
+          return;
+        }
+        
         const formatted = await formatCurrency(amount, fromCurrency);
         setFormattedValue(formatted);
       } catch (error) {
         console.error('Error formatting currency:', error);
         // Fallback to USD formatting
+        const safeAmount = isNaN(amount) ? 0 : amount;
         setFormattedValue(new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: 'USD',
           minimumFractionDigits: 0,
           maximumFractionDigits: 0,
-        }).format(amount));
+        }).format(safeAmount));
       } finally {
         setIsLoading(false);
       }
     };
 
     formatValue();
-  }, [amount, fromCurrency, formatCurrency]);
+  }, [amount, fromCurrency, formatCurrency, fallback]);
 
   if (isLoading) {
     return (

@@ -94,6 +94,13 @@ export async function getCurrencyRates(
 
 // Format currency amount
 export function formatCurrency(amount: number, currency: string): string {
+  console.log('🔍 formatCurrency called with:', { amount, currency, type: typeof amount });
+  
+  if (isNaN(amount) || amount === null || amount === undefined) {
+    console.log('🔍 formatCurrency: Invalid amount, returning $0');
+    return '$0';
+  }
+  
   const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency,
@@ -101,7 +108,9 @@ export function formatCurrency(amount: number, currency: string): string {
     maximumFractionDigits: 2,
   });
   
-  return formatter.format(amount);
+  const result = formatter.format(amount);
+  console.log('🔍 formatCurrency result:', result);
+  return result;
 }
 
 // Get currency symbol

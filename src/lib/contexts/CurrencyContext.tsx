@@ -80,12 +80,18 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
   // Format currency amount in preferred currency
   const formatCurrency = useCallback(async (amount: number, fromCurrency: string = 'USD'): Promise<string> => {
     try {
+      console.log('🔍 CurrencyContext formatCurrency called with:', { amount, fromCurrency, preferredCurrency });
       const convertedAmount = await convertAmount(amount, fromCurrency);
-      return formatCurrencyUtil(convertedAmount, preferredCurrency);
+      console.log('🔍 CurrencyContext convertedAmount:', convertedAmount);
+      const formatted = formatCurrencyUtil(convertedAmount, preferredCurrency);
+      console.log('🔍 CurrencyContext formatted result:', formatted);
+      return formatted;
     } catch (err) {
       console.error('Error formatting currency:', err);
       // Fallback to USD formatting
-      return formatCurrencyUtil(amount, 'USD');
+      const fallback = formatCurrencyUtil(amount, 'USD');
+      console.log('🔍 CurrencyContext fallback result:', fallback);
+      return fallback;
     }
   }, [convertAmount, preferredCurrency]);
 
