@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Asset, Debt } from '../firebase/types';
+import { Asset, Debt, AssetSheet, AssetSection } from '../firebase/types';
 import { 
   collection, 
   getDocs, 
@@ -75,7 +75,7 @@ export function useConsolidatedAssets(userId: string) {
         const sheets = sheetsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as AssetSheet[];
 
         // Get all sections
         const sectionsRef = collection(db, `users/${userId}/sections`);
@@ -83,7 +83,7 @@ export function useConsolidatedAssets(userId: string) {
         const sections = sectionsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
+        })) as AssetSection[];
 
         // Get all assets
         const assetsRef = collection(db, `users/${userId}/assets`);
@@ -111,7 +111,7 @@ export function useConsolidatedAssets(userId: string) {
           // Find the section to get the correct sheet name
           const section = sections.find(s => s.id === asset.sectionId);
           const sheetName = section ? sheetMap.get(section.sheetId) || 'Unknown Sheet' : 'Unknown Sheet';
-          const sectionName = sectionMap.get(asset.sectionId) || 'Unknown Section';
+          const sectionName = sectionMap.get(asset.sectionId || '') || 'Unknown Section';
           
           // Create group key for consolidation
           const groupKey = asset.symbol ? `${asset.symbol}_${asset.type}` : `${asset.name}_${asset.type}`;

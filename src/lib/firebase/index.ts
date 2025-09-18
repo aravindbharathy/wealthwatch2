@@ -17,7 +17,7 @@ export * from './portfolioHelpers';
 export * from './validation';
 
 // Seed data utilities
-export * from './seedData';
+export * from './portfolioSeedData';
 
 // Re-export commonly used functions for convenience
 export {

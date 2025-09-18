@@ -5,6 +5,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import DemoSignInButton from "./DemoSignInButton";
+import { 
+  BarChart3, 
+  Gem, 
+  CreditCard, 
+  Link as LinkIcon, 
+  Building2,
+  Menu,
+  User
+} from "lucide-react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -19,31 +28,31 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
     {
       name: "Net Worth",
       href: "/dashboard",
-      icon: "📊",
+      icon: BarChart3,
       value: "$0.00"
     },
     {
       name: "Assets",
       href: "/assets",
-      icon: "💎",
+      icon: Gem,
       value: "$0.00"
     },
     {
       name: "Debts",
       href: "/debts",
-      icon: "∞",
+      icon: CreditCard,
       value: "$0.00"
     },
     {
       name: "Nexus",
       href: "/nexus",
-      icon: "🔗",
+      icon: LinkIcon,
       value: "$0.00"
     },
     {
       name: "Accounts",
       href: "/accounts",
-      icon: "🏦",
+      icon: Building2,
       value: "$0.00"
     }
   ];
@@ -67,9 +76,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
           onClick={onToggle}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <Menu className="w-5 h-5" />
         </button>
         {isOpen && (
           <h1 className="text-xl font-bold text-gray-900">Wealth Watch</h1>
@@ -91,7 +98,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
               }`}
             >
               <div className="flex items-center space-x-3">
-                <span className="text-lg">{item.icon}</span>
+                <item.icon className="w-5 h-5" />
                 {isOpen && <span className="font-medium">{item.name}</span>}
               </div>
               {isOpen && (
@@ -134,9 +141,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 className="w-full p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                 title="Sign in as Demo User"
               >
-                <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+                <User className="w-5 h-5 mx-auto" />
               </button>
             )}
           </div>
@@ -146,7 +151,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
               <div>
                 <h3 className="text-sm font-medium text-green-800 mb-2">Demo User Active</h3>
                 <p className="text-xs text-green-600 mb-3">
-                  You're signed in as a demo user. All changes will be saved to the database.
+                  You&apos;re signed in as a demo user. All changes will be saved to the database.
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
