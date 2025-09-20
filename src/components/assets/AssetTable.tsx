@@ -301,6 +301,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
         {asset.costBasis && asset.costBasis > 0 ? (
           <CurrencyFormattedValue 
             amount={asset.costBasis} 
+            fromCurrency={asset.currency}
             className="text-sm font-medium text-gray-900"
           />
         ) : (
@@ -314,6 +315,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
           {getPerformanceIcon(dayChange)}
           <CurrencyFormattedValue 
             amount={asset.currentValue} 
+            fromCurrency={asset.currency}
             className="text-sm font-medium text-gray-900"
           />
         </div>

@@ -195,10 +195,51 @@ export interface SearchParams {
   offset?: number;
 }
 
-// Function to search for tickers using the tickerslist endpoint
+// Priority exchanges for search - ordered by importance and coverage
+const PRIORITY_EXCHANGES = [
+  'XNYS', // New York Stock Exchange
+  'XNAS', // NASDAQ
+  'XNSE', // National Stock Exchange of India
+  'XBOM', // BSE Ltd (Bombay Stock Exchange)
+  'XLON', // London Stock Exchange
+  'XETR', // XETRA (German Exchange)
+  'XPAR', // Euronext Paris
+  'XTKS', // Tokyo Stock Exchange
+  'XHKG', // Hong Kong Stock Exchange
+  'XASX', // Australian Securities Exchange
+];
+
+// Core exchanges for fast initial search (most commonly used)
+const CORE_EXCHANGES = [
+  'XNYS', // New York Stock Exchange
+  'XNAS', // NASDAQ
+  'XNSE', // National Stock Exchange of India
+  'XBOM', // BSE Ltd (Bombay Stock Exchange)
+  'XLON', // London Stock Exchange
+];
+
+// Secondary exchanges for extended search
+const SECONDARY_EXCHANGES = [
+  'XTSE', // Toronto Stock Exchange
+  'XSWX', // SIX Swiss Exchange
+  'XSTO', // Nasdaq Stockholm
+  'XMIL', // Borsa Italiana
+  'XAMS', // Euronext Amsterdam
+  'XBRU', // Euronext Brussels
+  'XOSL', // Oslo Børs
+  'BVMF', // B3 S.A. - Brasil Bolsa Balcão
+  'XMEX', // Mexican Stock Exchange
+  'XCOP', // Colombian Stock Exchange
+  'XBUE', // Bolsa de Comercio de Buenos Aires
+];
+
+// Function to search for tickers using the optimized API route
 export async function searchTickers(params: SearchParams): Promise<StockSearchResult[]> {
   try {
-    const response: AxiosResponse<{ data: any[] }> = await marketstackAPI.get('/tickerslist', {
+    console.log('searchTickers called with params:', params);
+    
+    // Use the optimized API route that handles all exchanges internally
+    const response: AxiosResponse<{ data: StockSearchResult[] }> = await marketstackAPI.get('/tickerslist', {
       params: {
         search: params.search,
         exchange: params.exchange,
@@ -207,30 +248,14 @@ export async function searchTickers(params: SearchParams): Promise<StockSearchRe
       },
     });
     
-    // Filter to only include tickers that have EOD data available
-    const filteredTickers = response.data.data.filter((ticker: any) => ticker.has_eod === true);
-    
-    return filteredTickers.map((ticker: any) => {
-      const exchangeCode = ticker.stock_exchange?.mic || '';
-      const nativeCurrency = getExchangeCurrency(exchangeCode);
-      
-      return {
-        symbol: ticker.ticker, // Use ticker field, not symbol
-        name: ticker.name,
-        exchange: ticker.stock_exchange?.name || '',
-        exchange_code: ticker.stock_exchange?.acronym || '',
-        country: ticker.stock_exchange?.country || '',
-        currency: 'USD', // User's preferred currency
-        native_currency: nativeCurrency,
-        sector: ticker.sector,
-        industry: ticker.industry,
-      };
-    });
+    console.log(`Found ${response.data.data.length} results from optimized API`);
+    return response.data.data;
   } catch (error) {
     console.error('Error searching tickers:', error);
     throw error;
   }
 }
+
 
 // Function to get latest price for a symbol (EOD data)
 export async function getLatestPrice(symbol: string): Promise<EODData | null> {
@@ -304,20 +329,34 @@ export async function getTickerInfo(ticker: string): Promise<TickerInfo | null> 
 }
 
 // Updated function to get current price with full stock information
-// Tries intraday first for real-time data, falls back to EOD if intraday fails
+// Uses EOD data as primary source (more reliable for international stocks)
+// Falls back to intraday data only for US stocks that have real-time data
 export async function getStockWithPrice(symbol: string): Promise<StockSearchResult | null> {
   try {
     let priceData: EODData | IntradayData | null = null;
+    let dataSource = 'EOD';
     
-    // Try intraday first for real-time data
-    try {
-      priceData = await getLatestIntradayPrice(symbol);
-      console.log(`Using intraday data for ${symbol}`);
-    } catch (intradayError) {
-      console.warn(`Intraday data not available for ${symbol}, falling back to EOD:`, intradayError);
-      // Fall back to EOD data
-      priceData = await getLatestPrice(symbol);
-      console.log(`Using EOD data for ${symbol}`);
+    // For US stocks, try intraday first for real-time data
+    if (symbol.includes('.') === false || symbol.endsWith('.US')) {
+      try {
+        priceData = await getLatestIntradayPrice(symbol);
+        dataSource = 'Intraday';
+        console.log(`Using intraday data for ${symbol}`);
+      } catch (intradayError) {
+        console.warn(`Intraday data not available for ${symbol}, falling back to EOD:`, intradayError);
+      }
+    }
+    
+    // If intraday failed or not applicable, use EOD data
+    if (!priceData) {
+      try {
+        priceData = await getLatestPrice(symbol);
+        dataSource = 'EOD';
+        console.log(`Using EOD data for ${symbol}`);
+      } catch (eodError) {
+        console.error(`EOD data not available for ${symbol}:`, eodError);
+        return null;
+      }
     }
     
     if (!priceData) return null;

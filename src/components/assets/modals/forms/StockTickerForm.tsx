@@ -9,6 +9,7 @@ import {
   StockSearchResult 
 } from '@/lib/marketstack';
 import CurrencyInput from '@/components/CurrencyInput';
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
 
 interface StockTickerFormProps {
   onSubmit: (asset: CreateAssetInput) => Promise<void>;
@@ -29,6 +30,7 @@ const POPULAR_STOCKS = [
 ];
 
 export default function StockTickerForm({ onSubmit, onBack, loading = false }: StockTickerFormProps) {
+  const { preferredCurrency } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<StockSearchResult[]>([]);
   const [selectedStock, setSelectedStock] = useState<StockSearchResult | null>(null);
@@ -164,6 +166,13 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
         setSelectedStock(mergedStock);
         setSearchQuery(`${mergedStock.symbol} - ${mergedStock.name}`);
         setShowSuggestions(false);
+        
+        // Update form data to use the native currency of the selected stock
+        setFormData(prev => ({
+          ...prev,
+          avgCostCurrency: mergedStock.native_currency,
+          costBasisCurrency: mergedStock.native_currency,
+        }));
       }
     } catch (error: any) {
       console.error('Error fetching stock price:', error);
@@ -188,6 +197,13 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
         setSelectedStock(mergedStock);
         setSearchQuery(`${mergedStock.symbol} - ${mergedStock.name}`);
         setShowSuggestions(false);
+        
+        // Update form data to use the native currency of the selected stock
+        setFormData(prev => ({
+          ...prev,
+          avgCostCurrency: mergedStock.native_currency,
+          costBasisCurrency: mergedStock.native_currency,
+        }));
       }
     } catch (error: any) {
       console.error('Error fetching stock price:', error);
@@ -229,7 +245,11 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
     }
 
     try {
-      const currentValue = formData.quantity * (selectedStock.current_price || 0);
+      // Calculate current value in the native currency of the stock
+      const nativePrice = selectedStock.current_price || 0;
+      const currentValue = formData.quantity * nativePrice;
+      
+      // Calculate cost basis in the same currency as the cost basis input
       const costBasis = formData.costBasis || (formData.quantity * formData.avgCost);
 
       const assetData: CreateAssetInput = {
@@ -237,10 +257,10 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
         type: 'stock_ticker',
         symbol: selectedStock.symbol,
         exchange: selectedStock.exchange,
-        currency: selectedStock.native_currency,
+        currency: selectedStock.native_currency, // Use the native currency of the stock
         quantity: formData.quantity,
-        currentPrice: selectedStock.current_price || 0,
-        currentValue: currentValue,
+        currentPrice: nativePrice, // Price in native currency
+        currentValue: currentValue, // Value in native currency
         costBasis: costBasis,
         sectionId: '', // Will be set by parent component
         metadata: {
@@ -248,10 +268,12 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
           tags: ['stock', 'equity'],
           customFields: {
             usdPrice: selectedStock.current_price_usd || 0,
-            avgCostCurrency: formData.avgCostCurrency || 'USD',
-            costBasisCurrency: formData.costBasisCurrency || 'USD',
+            avgCostCurrency: formData.avgCostCurrency || selectedStock.native_currency,
+            costBasisCurrency: formData.costBasisCurrency || selectedStock.native_currency,
             sector: selectedStock.sector || '',
             industry: selectedStock.industry || '',
+            nativeCurrency: selectedStock.native_currency,
+            conversionRate: selectedStock.conversion_rate || 1,
           },
         },
       };
@@ -326,7 +348,7 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-900">{stock.country}</div>
-                      <div className="text-xs text-gray-500">{stock.currency}</div>
+                      <div className="text-xs text-gray-500">{stock.native_currency}</div>
                     </div>
                   </div>
                 </div>
@@ -372,20 +394,20 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
                 <div className="text-lg font-semibold text-gray-900">
                   {selectedStock.current_price ? `${selectedStock.native_currency} ${selectedStock.current_price.toFixed(2)}` : 'N/A'}
                 </div>
-                {selectedStock.native_currency !== 'USD' && selectedStock.current_price_usd && (
+                {selectedStock.native_currency !== preferredCurrency && selectedStock.current_price_usd && (
                   <div className="text-sm text-gray-600">
-                    ≈ ${selectedStock.current_price_usd.toFixed(2)} USD
+                    ≈ ${selectedStock.current_price_usd.toFixed(2)} {preferredCurrency}
                   </div>
                 )}
               </div>
             </div>
             
-            {selectedStock.native_currency !== 'USD' && selectedStock.conversion_rate && (
+            {selectedStock.native_currency !== preferredCurrency && selectedStock.conversion_rate && (
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>Exchange Rate:</span>
                   <span className="font-medium">
-                    1 {selectedStock.native_currency} = ${selectedStock.conversion_rate.toFixed(4)} USD
+                    1 {selectedStock.native_currency} = {selectedStock.conversion_rate.toFixed(4)} {preferredCurrency}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
