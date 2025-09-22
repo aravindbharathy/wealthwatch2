@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import { Asset } from '@/lib/firebase/types';
+import { convertCurrency } from '@/lib/currency';
 
 interface SheetInsightsProps {
   currentSheetAssets: Asset[];
@@ -19,6 +20,12 @@ interface SheetMetrics {
 
 export default function SheetInsights({ currentSheetAssets, loading, sheetName }: SheetInsightsProps) {
   const { formatCurrency, preferredCurrency } = useCurrency();
+  const [convertedTotals, setConvertedTotals] = useState<{
+    totalInvested: number;
+    totalValue: number;
+    totalReturn: number;
+    totalReturnPercent: number;
+  } | null>(null);
   const [formattedMetrics, setFormattedMetrics] = useState<{
     totalInvested: string;
     totalValue: string;
@@ -26,46 +33,129 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
     totalReturnPercent: string;
   } | null>(null);
 
-  // Calculate sheet metrics from assets
-  const calculateSheetMetrics = (): SheetMetrics => {
-    const totalInvested = currentSheetAssets.reduce((sum, asset) => sum + (asset.costBasis || 0), 0);
-    const totalValue = currentSheetAssets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
-    const totalReturn = totalValue - totalInvested;
-    const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+  // Create a stable key for the assets to detect changes
+  const assetsKey = useMemo(() => 
+    currentSheetAssets.map(asset => `${asset.id}-${asset.sectionId}-${asset.costBasis}-${asset.currentValue}-${asset.currency}`).join('|'),
+    [currentSheetAssets]
+  );
 
-
-    return {
-      totalInvested,
-      totalValue,
-      totalReturn,
-      totalReturnPercent,
+  // Convert all values to preferred currency efficiently
+  useEffect(() => {
+    const convertTotals = async () => {
+      if (currentSheetAssets.length === 0) {
+        setConvertedTotals({
+          totalInvested: 0,
+          totalValue: 0,
+          totalReturn: 0,
+          totalReturnPercent: 0,
+        });
+        return;
+      }
+      
+      try {
+        // Group assets by currency to minimize API calls
+        const currencyGroups: { [currency: string]: { costBasis: number; currentValue: number } } = {};
+        
+        for (const asset of currentSheetAssets) {
+          const currency = asset.currency || 'USD';
+          if (!currencyGroups[currency]) {
+            currencyGroups[currency] = { costBasis: 0, currentValue: 0 };
+          }
+          
+          if (asset.costBasis && asset.costBasis > 0) {
+            currencyGroups[currency].costBasis += asset.costBasis;
+          }
+          currencyGroups[currency].currentValue += asset.currentValue;
+        }
+        
+        let convertedInvested = 0;
+        let convertedValue = 0;
+        
+        // Convert each currency group efficiently
+        const conversionPromises = Object.entries(currencyGroups).map(async ([currency, amounts]) => {
+          if (currency === preferredCurrency) {
+            // No conversion needed
+            return {
+              costBasis: amounts.costBasis,
+              currentValue: amounts.currentValue
+            };
+          } else {
+            // Use convertCurrency for efficient conversion with caching
+            const [costBasisConversion, currentValueConversion] = await Promise.all([
+              amounts.costBasis > 0 ? convertCurrency(currency, preferredCurrency, amounts.costBasis) : Promise.resolve({ convertedAmount: 0 }),
+              convertCurrency(currency, preferredCurrency, amounts.currentValue)
+            ]);
+            
+            return {
+              costBasis: costBasisConversion.convertedAmount || 0,
+              currentValue: currentValueConversion.convertedAmount || 0
+            };
+          }
+        });
+        
+        const conversions = await Promise.all(conversionPromises);
+        
+        // Sum up all conversions
+        for (const conversion of conversions) {
+          convertedInvested += conversion.costBasis;
+          convertedValue += conversion.currentValue;
+        }
+        
+        const convertedReturn = convertedValue - convertedInvested;
+        const convertedReturnPercent = convertedInvested > 0 ? (convertedReturn / convertedInvested) * 100 : 0;
+        
+        setConvertedTotals({
+          totalInvested: convertedInvested,
+          totalValue: convertedValue,
+          totalReturn: convertedReturn,
+          totalReturnPercent: convertedReturnPercent,
+        });
+      } catch (error) {
+        console.error('Error converting totals:', error);
+        // Fallback to original values
+        const totalInvested = currentSheetAssets.reduce((sum, asset) => {
+          return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+        }, 0);
+        const totalValue = currentSheetAssets.reduce((sum, asset) => sum + asset.currentValue, 0);
+        const totalReturn = totalValue - totalInvested;
+        const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+        
+        setConvertedTotals({
+          totalInvested,
+          totalValue,
+          totalReturn,
+          totalReturnPercent,
+        });
+      }
     };
-  };
+    
+    convertTotals();
+  }, [assetsKey, preferredCurrency]);
 
 
-  // Format metrics when assets or currency changes
+  // Format metrics when converted totals change
   useEffect(() => {
     const formatMetrics = async () => {
-      const metrics = calculateSheetMetrics();
+      if (!convertedTotals) return;
       
       const [formattedInvested, formattedValue, formattedReturn] = await Promise.all([
-        formatCurrency(metrics.totalInvested),
-        formatCurrency(metrics.totalValue),
-        formatCurrency(metrics.totalReturn),
+        formatCurrency(convertedTotals.totalInvested),
+        formatCurrency(convertedTotals.totalValue),
+        formatCurrency(convertedTotals.totalReturn),
       ]);
 
       setFormattedMetrics({
         totalInvested: formattedInvested,
         totalValue: formattedValue,
         totalReturn: formattedReturn,
-        totalReturnPercent: `${metrics.totalReturnPercent >= 0 ? '+' : ''}${metrics.totalReturnPercent.toFixed(2)}%`,
+        totalReturnPercent: `${convertedTotals.totalReturnPercent >= 0 ? '+' : ''}${convertedTotals.totalReturnPercent.toFixed(2)}%`,
       });
     };
 
-    if (currentSheetAssets.length > 0) {
+    if (convertedTotals) {
       formatMetrics();
     }
-  }, [currentSheetAssets, formatCurrency]);
+  }, [convertedTotals, formatCurrency]);
 
 
   const formatPercent = (percent: number): string => {
@@ -78,7 +168,7 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
     return 'text-gray-600';
   };
 
-  if (loading || !formattedMetrics) {
+  if (loading || !convertedTotals || !formattedMetrics) {
     return (
       <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
         <div className="animate-pulse">

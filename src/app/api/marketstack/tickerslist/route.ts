@@ -88,7 +88,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
     
-    console.log('API Route: Searching for:', search, 'exchange:', exchange, 'limit:', limit);
     
     // Return empty results if search is empty
     if (!search) {
@@ -100,7 +99,6 @@ export async function GET(request: NextRequest) {
 
     // Parse search query to detect exchange names and extract ticker
     const { ticker, targetExchange } = parseSearchQuery(search);
-    console.log('Parsed search - ticker:', ticker, 'targetExchange:', targetExchange);
     
     // If specific exchange is provided, search only that exchange
     if (exchange) {
@@ -115,7 +113,6 @@ export async function GET(request: NextRequest) {
 
     // If target exchange was detected, search only that exchange
     if (targetExchange) {
-      console.log(`Searching specific exchange: ${targetExchange} for ticker: ${ticker}`);
       const response = await fetch(`${BASE_URL}/tickerslist?access_key=${API_KEY}&search=${encodeURIComponent(ticker)}&exchange=${targetExchange}&limit=${limit}&offset=${offset}`);
       const data = await response.json();
       
@@ -163,7 +160,6 @@ export async function GET(request: NextRequest) {
         };
       });
       
-      console.log(`API Route: Returning ${processedResults.length} results from ${targetExchange}`);
       
       return NextResponse.json({
         data: processedResults,
@@ -181,13 +177,11 @@ export async function GET(request: NextRequest) {
     
     for (const exchangeCode of CORE_EXCHANGES) {
       try {
-        console.log(`Searching ${exchangeCode}...`);
         const response = await fetch(`${BASE_URL}/tickerslist?access_key=${API_KEY}&search=${encodeURIComponent(ticker)}&exchange=${exchangeCode}&limit=10&offset=0`);
         const data = await response.json();
         
         if (data.data && Array.isArray(data.data)) {
           allResults.push(...data.data);
-          console.log(`Found ${data.data.length} results from ${exchangeCode}`);
         }
         
         // Small delay to avoid rate limits
@@ -246,7 +240,6 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    console.log(`API Route: Returning ${processedResults.length} results`);
     
     return NextResponse.json({
       data: processedResults,

@@ -145,6 +145,36 @@ export default function TotalInvestmentsSummary({ assetsBySection }: TotalInvest
 
   return (
     <div className="border-b border-gray-200 mb-2"> {/* Removed box, added bottom border */}
+      {/* Column Headers */}
+      <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-1 px-2">
+        {/* Empty space for toggle icon alignment */}
+        <div></div>
+
+        {/* Asset Name Column Header */}
+        <div className="flex items-center">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide"></span>
+        </div>
+
+        {/* IRR Column Header */}
+        <div className="flex justify-end">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">IRR</span>
+        </div>
+
+        {/* Cost Basis Column Header */}
+        <div className="flex justify-end">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Cost Basis</span>
+        </div>
+
+        {/* Value Column Header */}
+        <div className="flex justify-end">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Value</span>
+        </div>
+
+        {/* Empty space for actions alignment */}
+        <div></div>
+      </div>
+
+      {/* Total Investments Row */}
       <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-2 px-2">
         {/* Empty space for toggle icon alignment */}
         <div></div>

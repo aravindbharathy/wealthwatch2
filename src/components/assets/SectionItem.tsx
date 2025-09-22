@@ -253,9 +253,6 @@ export default function SectionItem({
             {totalInvested > 0 ? formatPercent(totalReturnPercent) : '--'}
           </div>
           <div className="flex justify-end items-center text-sm text-gray-900 font-medium">
-            {!section.isExpanded && (
-              <span className="text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5">CB</span>
-            )}
             {new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: preferredCurrency,
@@ -264,9 +261,6 @@ export default function SectionItem({
             }).format(totalInvested)}
           </div>
           <div className="flex justify-end items-center text-sm text-gray-900 font-medium">
-            {!section.isExpanded && (
-              <span className="text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5">V</span>
-            )}
             {new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: preferredCurrency,

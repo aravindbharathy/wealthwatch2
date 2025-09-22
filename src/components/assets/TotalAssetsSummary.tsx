@@ -132,11 +132,11 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-3">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Total assets value</h2>
-          <div className="text-4xl font-bold text-gray-900">
+          <h2 className="text-lg text-gray-900 mb-1">Total Assets</h2>
+          <div className="text-2xl font-bold text-gray-900">
             {new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: preferredCurrency,

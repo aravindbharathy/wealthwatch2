@@ -236,7 +236,6 @@ const SECONDARY_EXCHANGES = [
 // Function to search for tickers using the optimized API route
 export async function searchTickers(params: SearchParams): Promise<StockSearchResult[]> {
   try {
-    console.log('searchTickers called with params:', params);
     
     // Use the optimized API route that handles all exchanges internally
     const response: AxiosResponse<{ data: StockSearchResult[] }> = await marketstackAPI.get('/tickerslist', {
@@ -248,7 +247,6 @@ export async function searchTickers(params: SearchParams): Promise<StockSearchRe
       },
     });
     
-    console.log(`Found ${response.data.data.length} results from optimized API`);
     return response.data.data;
   } catch (error) {
     console.error('Error searching tickers:', error);
@@ -341,7 +339,6 @@ export async function getStockWithPrice(symbol: string): Promise<StockSearchResu
       try {
         priceData = await getLatestIntradayPrice(symbol);
         dataSource = 'Intraday';
-        console.log(`Using intraday data for ${symbol}`);
       } catch (intradayError) {
         console.warn(`Intraday data not available for ${symbol}, falling back to EOD:`, intradayError);
       }
@@ -352,7 +349,6 @@ export async function getStockWithPrice(symbol: string): Promise<StockSearchResu
       try {
         priceData = await getLatestPrice(symbol);
         dataSource = 'EOD';
-        console.log(`Using EOD data for ${symbol}`);
       } catch (eodError) {
         console.error(`EOD data not available for ${symbol}:`, eodError);
         return null;

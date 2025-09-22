@@ -40,13 +40,6 @@ export default function SheetTabs({
   // Convert sheet values efficiently when sheets or assets change
   useEffect(() => {
     const convertSheetValues = async () => {
-      console.log('SheetTabs: Converting sheet values for', sheets.length, 'sheets');
-      console.log('AssetsBySection:', Object.keys(assetsBySection).map(sectionId => ({
-        sectionId,
-        assetCount: assetsBySection[sectionId]?.length || 0,
-        assets: assetsBySection[sectionId]?.map(a => ({ id: a.id, name: a.name, sectionId: a.sectionId, currency: a.currency, currentValue: a.currentValue })) || []
-      })));
-      
       const newConvertedValues: { [sheetId: string]: number } = {};
       
       for (const sheet of sheets) {
@@ -203,14 +196,14 @@ export default function SheetTabs({
   const getSheetColor = (index: number, isActive: boolean) => {
     if (isActive) {
       return {
-        bar: 'bg-pink-500', // Bright pink for active sheet
+        bar: 'bg-blue-500', // Bright blue for active sheet
         text: 'text-gray-900',
         valueText: 'text-gray-900',
-        bg: 'bg-pink-50'
+        bg: 'bg-blue-50'
       };
     } else {
       return {
-        bar: 'bg-purple-300', // Light purple for inactive sheets
+        bar: 'bg-gray-300', // Light grey for inactive sheets
         text: 'text-gray-700',
         valueText: 'text-gray-600',
         bg: 'bg-white'
@@ -219,11 +212,11 @@ export default function SheetTabs({
   };
 
   return (
-    <div className="mb-6 relative">
+    <div className="mb-3 relative">
       {/* Scenario-style Sheet Display */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Sheet Cards */}
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {sheets.map((sheet, index) => {
             const isActive = activeSheetId === sheet.id;
             const colors = getSheetColor(index, isActive);
@@ -240,8 +233,8 @@ export default function SheetTabs({
               <div key={sheet.id} className="relative">
                 <div
                   className={`flex items-center group cursor-pointer transition-all duration-200 hover:scale-105 ${colors.bg} rounded-lg border-2 ${
-                    isActive ? 'border-pink-200 shadow-sm' : 'border-gray-200 hover:border-purple-200'
-                  } p-3 min-w-[160px]`}
+                    isActive ? 'border-blue-200 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                  } p-2 min-w-[160px]`}
                 >
                   {/* Main sheet content - clickable area */}
                   <button
