@@ -135,19 +135,23 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
 
   // Format metrics when converted totals change
   useEffect(() => {
-    const formatMetrics = async () => {
+    const formatMetrics = () => {
       if (!convertedTotals) return;
       
-      const [formattedInvested, formattedValue, formattedReturn] = await Promise.all([
-        formatCurrency(convertedTotals.totalInvested),
-        formatCurrency(convertedTotals.totalValue),
-        formatCurrency(convertedTotals.totalReturn),
-      ]);
+      // Use direct formatting since amounts are already converted to preferred currency
+      const formatAmount = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: preferredCurrency,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(amount);
+      };
 
       setFormattedMetrics({
-        totalInvested: formattedInvested,
-        totalValue: formattedValue,
-        totalReturn: formattedReturn,
+        totalInvested: formatAmount(convertedTotals.totalInvested),
+        totalValue: formatAmount(convertedTotals.totalValue),
+        totalReturn: formatAmount(convertedTotals.totalReturn),
         totalReturnPercent: `${convertedTotals.totalReturnPercent >= 0 ? '+' : ''}${convertedTotals.totalReturnPercent.toFixed(2)}%`,
       });
     };
@@ -155,7 +159,7 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
     if (convertedTotals) {
       formatMetrics();
     }
-  }, [convertedTotals, formatCurrency]);
+  }, [convertedTotals, preferredCurrency]);
 
 
   const formatPercent = (percent: number): string => {

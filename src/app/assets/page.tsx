@@ -668,6 +668,15 @@ export default function AssetsPage() {
           loading={assetsLoading}
           sheetName={activeSheet?.name}
         />
+        {/* Debug info */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-4 p-2 bg-gray-100 text-xs">
+            <div>Active Sheet: {activeSheet?.name} ({activeSheetId})</div>
+            <div>Sections: {sections.length}</div>
+            <div>Current Sheet Assets: {currentSheetAssets.length}</div>
+            <div>All Assets by Section keys: {Object.keys(assetsBySection).length}</div>
+          </div>
+        )}
 
       </div>
 

@@ -89,6 +89,15 @@ export default function SheetTabs({
           const conversions = await Promise.all(conversionPromises);
           convertedValue = conversions.reduce((sum, value) => sum + value, 0);
           
+          console.log('SheetTabs Debug:', {
+            sheetId: sheet.id,
+            sheetName: sheet.name,
+            allAssets: allAssets.length,
+            convertedValue,
+            currencyGroups,
+            preferredCurrency
+          });
+          
           newConvertedValues[sheet.id] = convertedValue;
         } catch (error) {
           console.error(`Error converting values for sheet ${sheet.id}:`, error);
