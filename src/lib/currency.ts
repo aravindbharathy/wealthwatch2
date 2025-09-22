@@ -54,7 +54,8 @@ export async function convertCurrency(
       ...(amount && { amount: amount.toString() }),
     });
 
-    const response = await axios.get(`/api/currency/convert?${params}`);
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const response = await axios.get(`${baseUrl}/api/currency/convert?${params}`);
     const data = response.data;
 
     // Cache the rate
