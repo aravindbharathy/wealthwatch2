@@ -7,7 +7,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { useCurrency } from '@/lib/hooks/useCurrency';
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import CurrencyFormattedValue from '@/components/CurrencyFormattedValue';
 
 interface AssetTableProps {
@@ -283,10 +283,12 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
 
       {/* Asset Info */}
       <div className="text-left">
-        <div className="font-medium text-gray-900">{asset.name}</div>
-        {asset.symbol && (
-          <div className="text-xs text-gray-500">{asset.symbol}</div>
-        )}
+        <div className="font-medium text-gray-900">
+          {asset.name}
+          {asset.symbol && (
+            <span className="text-xs text-gray-500 font-normal"> - {asset.symbol}</span>
+          )}
+        </div>
       </div>
 
       {/* IRR */}

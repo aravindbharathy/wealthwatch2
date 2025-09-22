@@ -1,12 +1,12 @@
 "use client";
 
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { useConsolidatedAssets } from '@/lib/hooks/useConsolidatedAssets';
 import ConsolidatedTable from '@/components/nexus/ConsolidatedTable';
 import NexusSidebar from '@/components/nexus/NexusSidebar';
 
 export default function NexusPage() {
-  const { user } = useAuth();
+  const { user } = useAuthNew();
   const { consolidatedAssets, consolidatedDebts, summary, loading, error } = useConsolidatedAssets(user?.uid || '');
 
   if (!user) {

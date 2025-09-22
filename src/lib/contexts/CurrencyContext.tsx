@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { getPreferredCurrency, setPreferredCurrency } from '@/lib/preferences';
 import { convertCurrency, formatCurrency as formatCurrencyUtil, getCurrencySymbol } from '@/lib/currency';
 
@@ -22,7 +22,7 @@ interface CurrencyProviderProps {
 }
 
 export function CurrencyProvider({ children }: CurrencyProviderProps) {
-  const { user } = useAuth();
+  const { user } = useAuthNew();
   const [preferredCurrency, setPreferredCurrencyState] = useState<string>('USD');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

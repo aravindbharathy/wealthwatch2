@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "@/lib/hooks/useAuth";
-import { useCurrency } from "@/lib/hooks/useCurrency";
+import { useAuthNew } from "@/lib/contexts/AuthContext";
+import { useCurrency } from "@/lib/contexts/CurrencyContext";
 
 interface HeaderProps {
   onMenuClick?: () => void;
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  const { user, isDemoUser, signOut } = useAuth();
+  const { user, isDemoUser, signOut } = useAuthNew();
   const { preferredCurrency, setPreferredCurrency, isLoading: currencyLoading } = useCurrency();
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);

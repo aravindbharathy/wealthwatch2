@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { convertCurrency } from '@/lib/currency';
 import { getPreferredCurrency } from '@/lib/preferences';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuthNew } from '@/lib/contexts/AuthContext';
 
 interface CurrencyInputProps {
   value: number;
@@ -28,7 +28,7 @@ export default function CurrencyInput({
   const [isConverting, setIsConverting] = useState(false);
   const [error, setError] = useState<string>('');
   const [preferredCurrency, setPreferredCurrency] = useState<string>('USD');
-  const { user } = useAuth();
+  const { user } = useAuthNew();
 
   // Load preferred currency on mount
   useEffect(() => {

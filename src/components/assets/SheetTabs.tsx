@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AssetSheet, Asset } from '@/lib/firebase/types';
-import { useCurrency } from '@/lib/hooks/useCurrency';
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
+import { convertCurrency } from '@/lib/currency';
 
 
 interface SheetTabsProps {
@@ -27,40 +28,91 @@ export default function SheetTabs({
   isAuthenticated = true,
   assetsBySection = {},
 }: SheetTabsProps) {
-  const { formatCurrency } = useCurrency();
+  const { preferredCurrency } = useCurrency();
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showDropdown, setShowDropdown] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
-  const [formattedSheetValues, setFormattedSheetValues] = useState<{ [sheetId: string]: string }>({});
+  const [convertedSheetValues, setConvertedSheetValues] = useState<{ [sheetId: string]: number }>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
-  // Calculate total value for each sheet
-  const calculateSheetValue = (sheet: AssetSheet): number => {
-    if (!sheet.sections) return 0;
-    
-    return sheet.sections.reduce((total, section) => {
-      const sectionAssets = assetsBySection[section.id] || [];
-      return total + sectionAssets.reduce((sectionTotal, asset) => sectionTotal + asset.currentValue, 0);
-    }, 0);
-  };
-
-  // Format sheet values when sheets or assets change
+  // Convert sheet values efficiently when sheets or assets change
   useEffect(() => {
-    const formatSheetValues = async () => {
-      const newFormattedValues: { [sheetId: string]: string } = {};
+    const convertSheetValues = async () => {
+      console.log('SheetTabs: Converting sheet values for', sheets.length, 'sheets');
+      console.log('AssetsBySection:', Object.keys(assetsBySection).map(sectionId => ({
+        sectionId,
+        assetCount: assetsBySection[sectionId]?.length || 0,
+        assets: assetsBySection[sectionId]?.map(a => ({ id: a.id, name: a.name, sectionId: a.sectionId, currency: a.currency, currentValue: a.currentValue })) || []
+      })));
+      
+      const newConvertedValues: { [sheetId: string]: number } = {};
       
       for (const sheet of sheets) {
-        const totalValue = calculateSheetValue(sheet);
-        newFormattedValues[sheet.id] = await formatCurrency(totalValue);
+        if (!sheet.sections) {
+          newConvertedValues[sheet.id] = 0;
+          continue;
+        }
+
+        try {
+          // Get all assets for this sheet
+          const allAssets: Asset[] = [];
+          for (const section of sheet.sections) {
+            const sectionAssets = assetsBySection[section.id] || [];
+            allAssets.push(...sectionAssets);
+          }
+
+          if (allAssets.length === 0) {
+            newConvertedValues[sheet.id] = 0;
+            continue;
+          }
+
+          // Group assets by currency to minimize API calls
+          const currencyGroups: { [currency: string]: number } = {};
+          
+          for (const asset of allAssets) {
+            const currency = asset.currency || 'USD';
+            if (!currencyGroups[currency]) {
+              currencyGroups[currency] = 0;
+            }
+            currencyGroups[currency] += asset.currentValue;
+          }
+
+          let convertedValue = 0;
+          
+          // Convert each currency group efficiently
+          const conversionPromises = Object.entries(currencyGroups).map(async ([currency, amount]) => {
+            if (currency === preferredCurrency) {
+              // No conversion needed
+              return amount;
+            } else {
+              // Use convertCurrency for efficient conversion with caching
+              const conversion = await convertCurrency(currency, preferredCurrency, amount);
+              return conversion.convertedAmount || 0;
+            }
+          });
+          
+          const conversions = await Promise.all(conversionPromises);
+          convertedValue = conversions.reduce((sum, value) => sum + value, 0);
+          
+          newConvertedValues[sheet.id] = convertedValue;
+        } catch (error) {
+          console.error(`Error converting values for sheet ${sheet.id}:`, error);
+          // Fallback to raw sum
+          const fallbackValue = sheet.sections.reduce((total, section) => {
+            const sectionAssets = assetsBySection[section.id] || [];
+            return total + sectionAssets.reduce((sectionTotal, asset) => sectionTotal + asset.currentValue, 0);
+          }, 0);
+          newConvertedValues[sheet.id] = fallbackValue;
+        }
       }
       
-      setFormattedSheetValues(newFormattedValues);
+      setConvertedSheetValues(newConvertedValues);
     };
 
-    formatSheetValues();
-  }, [sheets, assetsBySection, formatCurrency]);
+    convertSheetValues();
+  }, [sheets, assetsBySection, preferredCurrency]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -175,7 +227,14 @@ export default function SheetTabs({
           {sheets.map((sheet, index) => {
             const isActive = activeSheetId === sheet.id;
             const colors = getSheetColor(index, isActive);
-            const sheetValue = formattedSheetValues[sheet.id] || '$0';
+            const sheetValue = convertedSheetValues[sheet.id] !== undefined 
+              ? new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: preferredCurrency,
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(convertedSheetValues[sheet.id])
+              : '$0';
             
             return (
               <div key={sheet.id} className="relative">

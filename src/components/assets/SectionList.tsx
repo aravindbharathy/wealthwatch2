@@ -18,7 +18,8 @@ import {
   arrayMove,
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
 
 interface SectionListProps {
   sections: AssetSection[];
@@ -233,7 +234,7 @@ export default function SectionList({
   };
   if (loading) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-1">
         {[...Array(2)].map((_, i) => (
           <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="animate-pulse">
@@ -290,7 +291,7 @@ export default function SectionList({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-      <div className="space-y-2 overflow-visible">
+      <div className="space-y-1 overflow-visible">
         {/* Sections */}
         <div>
           {sections.map((section) => (

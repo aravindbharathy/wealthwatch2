@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useCurrency } from '@/lib/hooks/useCurrency';
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import { Asset } from '@/lib/firebase/types';
 
 interface SheetInsightsProps {

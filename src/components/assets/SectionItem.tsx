@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { AssetSection, Asset } from '@/lib/firebase/types';
 import AssetTable from './AssetTable';
 import { useDroppable } from '@dnd-kit/core';
-import { useCurrency } from '@/lib/hooks/useCurrency';
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
+import { convertCurrency } from '@/lib/currency';
 
 interface SectionItemProps {
   section: AssetSection;
@@ -37,10 +38,12 @@ export default function SectionItem({
   isAuthenticated = true,
   activeAssetId,
 }: SectionItemProps) {
-  const { formatCurrency } = useCurrency();
-  const [formattedValues, setFormattedValues] = useState<{
-    totalInvested: string;
-    totalValue: string;
+  const { preferredCurrency, convertAmount } = useCurrency();
+  const [convertedTotals, setConvertedTotals] = useState<{
+    totalInvested: number;
+    totalValue: number;
+    totalReturn: number;
+    totalReturnPercent: number;
   } | null>(null);
 
   // Only create drop zone for empty sections to prevent blue rectangle flickering
@@ -59,31 +62,88 @@ export default function SectionItem({
     return `${sign}${percent.toFixed(1)}%`;
   };
 
-  // Format currency values when assets change
+  // Convert all values to preferred currency efficiently
   useEffect(() => {
-    const formatValues = async () => {
-      // Only include assets with cost basis in total invested calculation
-      const totalInvested = assets.reduce((sum, asset) => {
-        return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
-      }, 0);
-      // Include all assets in total value calculation
-      const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
-      
+    const convertTotals = async () => {
       try {
-        const formattedInvested = await formatCurrency(totalInvested);
-        const formattedValue = await formatCurrency(totalValue);
+        // Group assets by currency to minimize API calls
+        const currencyGroups: { [currency: string]: { costBasis: number; currentValue: number } } = {};
         
-        setFormattedValues({
-          totalInvested: formattedInvested,
-          totalValue: formattedValue,
+        for (const asset of assets) {
+          const currency = asset.currency || 'USD';
+          if (!currencyGroups[currency]) {
+            currencyGroups[currency] = { costBasis: 0, currentValue: 0 };
+          }
+          
+          if (asset.costBasis && asset.costBasis > 0) {
+            currencyGroups[currency].costBasis += asset.costBasis;
+          }
+          currencyGroups[currency].currentValue += asset.currentValue;
+        }
+        
+        let convertedInvested = 0;
+        let convertedValue = 0;
+        
+        // Convert each currency group efficiently
+        const conversionPromises = Object.entries(currencyGroups).map(async ([currency, amounts]) => {
+          if (currency === preferredCurrency) {
+            // No conversion needed
+            return {
+              costBasis: amounts.costBasis,
+              currentValue: amounts.currentValue
+            };
+          } else {
+            // Use convertCurrency for efficient conversion with caching
+            const [costBasisConversion, currentValueConversion] = await Promise.all([
+              amounts.costBasis > 0 ? convertCurrency(currency, preferredCurrency, amounts.costBasis) : Promise.resolve({ convertedAmount: 0 }),
+              convertCurrency(currency, preferredCurrency, amounts.currentValue)
+            ]);
+            
+            return {
+              costBasis: costBasisConversion.convertedAmount || 0,
+              currentValue: currentValueConversion.convertedAmount || 0
+            };
+          }
+        });
+        
+        const conversions = await Promise.all(conversionPromises);
+        
+        // Sum up all conversions
+        for (const conversion of conversions) {
+          convertedInvested += conversion.costBasis;
+          convertedValue += conversion.currentValue;
+        }
+        
+        const convertedReturn = convertedValue - convertedInvested;
+        const convertedReturnPercent = convertedInvested > 0 ? (convertedReturn / convertedInvested) * 100 : 0;
+        
+        setConvertedTotals({
+          totalInvested: convertedInvested,
+          totalValue: convertedValue,
+          totalReturn: convertedReturn,
+          totalReturnPercent: convertedReturnPercent,
         });
       } catch (error) {
-        console.error('Error formatting currency values:', error);
+        console.error('Error converting section totals:', error);
+        // Fallback to original values
+        const totalInvested = assets.reduce((sum, asset) => {
+          return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+        }, 0);
+        const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
+        const totalReturn = totalValue - totalInvested;
+        const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+        
+        setConvertedTotals({
+          totalInvested,
+          totalValue,
+          totalReturn,
+          totalReturnPercent,
+        });
       }
     };
-
-    formatValues();
-  }, [assets, formatCurrency]);
+    
+    convertTotals();
+  }, [assets, preferredCurrency]);
 
   const getPerformanceIcon = (change: number) => {
     if (change > 0) {
@@ -102,27 +162,71 @@ export default function SectionItem({
     return null;
   };
 
-  const totalInvested = assets.reduce((sum, asset) => {
-    return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
-  }, 0);
-  const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
-  const totalReturn = totalValue - totalInvested;
-  const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+  // Use converted totals if available, otherwise show loading
+  if (!convertedTotals) {
+    return (
+      <div className="relative transition-all duration-200 overflow-visible mb-2">
+        <div className="cursor-pointer relative bg-transparent">
+          <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-1 px-2">
+            <div className="flex justify-center">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <div className="flex items-center">
+              <h3 className="text-base font-semibold text-gray-900">{section.name}</h3>
+            </div>
+            <div className="flex justify-end text-sm font-medium text-gray-400">
+              Loading...
+            </div>
+            <div className="flex justify-end items-center text-sm text-gray-400 font-medium">
+              Loading...
+            </div>
+            <div className="flex justify-end items-center text-sm text-gray-400 font-medium">
+              Loading...
+            </div>
+            <div className="flex justify-center">
+              {isAuthenticated && (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowActions(!showActions);
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Section options"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { totalInvested, totalValue, totalReturn, totalReturnPercent } = convertedTotals;
 
   return (
     <div 
       ref={isSectionEmpty ? setDroppableRef : undefined}
-      className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 overflow-visible mb-6 ${
-        isOver && isSectionEmpty ? 'border-blue-400 bg-blue-50 shadow-md' : 'border-gray-200'
+      className={`relative transition-all duration-200 overflow-visible mb-2 ${
+        isOver && isSectionEmpty ? 'border-blue-400 bg-blue-50 shadow-md rounded-lg border' : ''
       }`}
     >
 
       {/* Section Header - Using same grid as asset table for perfect alignment */}
       <div 
-        className="cursor-pointer hover:bg-gray-50 relative"
+        className={`cursor-pointer relative bg-transparent ${
+          !section.isExpanded ? 'border-b border-gray-200' : ''
+        }`}
         onClick={() => onToggle(section.id)}
       >
-        <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-3 px-2">
+        <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-1 px-2">
           {/* Toggle Icon */}
           <div className="flex justify-center">
             <svg 
@@ -139,26 +243,36 @@ export default function SectionItem({
           
           {/* Section Name */}
           <div className="flex items-center">
-            <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
+            <h3 className="text-base font-semibold text-gray-900">{section.name}</h3>
           </div>
           
           {/* Summary Stats - Aligned with table columns */}
-          <div className={`flex justify-end font-medium ${
+          <div className={`flex justify-end text-sm font-medium ${
             totalInvested > 0 ? (totalReturnPercent >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'
           }`}>
             {totalInvested > 0 ? formatPercent(totalReturnPercent) : '--'}
           </div>
-          <div className="flex justify-end items-center text-gray-900 font-medium">
+          <div className="flex justify-end items-center text-sm text-gray-900 font-medium">
             {!section.isExpanded && (
               <span className="text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5">CB</span>
             )}
-            {formattedValues?.totalInvested || '$0'}
+            {new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: preferredCurrency,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(totalInvested)}
           </div>
-          <div className="flex justify-end items-center text-gray-900 font-medium">
+          <div className="flex justify-end items-center text-sm text-gray-900 font-medium">
             {!section.isExpanded && (
               <span className="text-[10px] bg-gray-100 text-gray-600 px-1 py-0.5 rounded font-medium mr-1.5">V</span>
             )}
-            {formattedValues?.totalValue || '$0'}
+            {new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: preferredCurrency,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(totalValue)}
           </div>
           
           {/* Actions Menu */}
@@ -216,7 +330,7 @@ export default function SectionItem({
 
       {/* Section Content */}
       {section.isExpanded && (
-        <div className="border-t border-gray-200 overflow-visible">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-visible">
           {/* Asset Table */}
           <div className="overflow-visible">
             <AssetTable

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Asset, AssetSheet, AssetSection } from '@/lib/firebase/types';
 import { useAssetSheets } from '@/lib/hooks/useAssetSheets';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { reorderAssets } from '@/lib/firebase/firebaseUtils';
 
 interface MoveAssetModalProps {
@@ -30,7 +30,7 @@ export default function MoveAssetModal({
   currentSheetId,
   onSuccess,
 }: MoveAssetModalProps) {
-  const { user } = useAuth();
+  const { user } = useAuthNew();
   const { sheets } = useAssetSheets(user?.uid || '');
   const [activeTab, setActiveTab] = useState<'assets' | 'debts'>('assets');
   const [searchTerm, setSearchTerm] = useState('');

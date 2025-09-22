@@ -58,7 +58,7 @@ body {
 }
 
 .section-header:hover {
-  @apply bg-gray-50;
+  /* Background color removed */
 }
 
 .sheet-tab {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useCurrency } from '@/lib/hooks/useCurrency';
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
 
 interface CurrencyFormattedValueProps {
   amount: number;

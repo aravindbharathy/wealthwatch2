@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuthNew } from "@/lib/contexts/AuthContext";
 import DemoSignInButton from "./DemoSignInButton";
 import { 
   BarChart3, 
@@ -22,7 +22,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const { user, isDemoUser, signInAsDemo } = useAuth();
+  const { user, isDemoUser, signInAsDemo } = useAuthNew();
 
   const navigationItems = [
     {

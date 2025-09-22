@@ -5,8 +5,7 @@ import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { clearDuplicatesFromConsole } from '@/lib/firebase/clearDuplicates';
 import { useAssetSheets } from '@/lib/hooks/useAssetSheets';
 import { useDemoAssetSheets, useDemoAssetSummary, useDemoSectionAssets } from '@/lib/hooks/useDemoAssets';
-import { usePortfolioValue } from '@/lib/hooks/usePortfolioValue';
-import { useCurrency } from '@/lib/hooks/useCurrency';
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import { AssetSheet, AssetSection, Asset, CreateAssetInput, CreateAssetSheetInput, CreateAssetSectionInput } from '@/lib/firebase/types';
 import { createAsset, deleteAsset, reorderAssets } from '@/lib/firebase/firebaseUtils';
 import { initializePortfolioWithSampleData } from '@/lib/firebase/portfolioUtils';
@@ -20,10 +19,11 @@ import {
 import { db } from '@/lib/firebase/firebase';
 import { config } from '@/lib/config';
 import { DEMO_USER_ID } from '@/lib/firebase/demoUserSetup';
-import PortfolioValueSummary from '@/components/assets/PortfolioValueChart';
+import TotalAssetsSummary from '@/components/assets/TotalAssetsSummary';
 import SheetTabs from '@/components/assets/SheetTabs';
 import SectionList from '@/components/assets/SectionList';
 import SheetInsights from '@/components/assets/SheetInsights';
+import TotalInvestmentsSummary from '@/components/assets/TotalInvestmentsSummary';
 import AddAssetModal from '@/components/assets/modals/AddAssetModal';
 import AddSectionModal from '@/components/assets/modals/AddSectionModal';
 import AddSheetModal from '@/components/assets/modals/AddSheetModal';
@@ -35,10 +35,6 @@ export default function AssetsPage() {
   const [activeSheetId, setActiveSheetId] = useState<string>('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [demoMode, setDemoMode] = useState<boolean>(config.features.enableDemoMode);
-  const [formattedSummaryValues, setFormattedSummaryValues] = useState<{
-    assets: string;
-    netWorth: string;
-  } | null>(null);
   
   // Modal states
   const [isAddAssetModalOpen, setIsAddAssetModalOpen] = useState(false);
@@ -80,37 +76,6 @@ export default function AssetsPage() {
   } = useAssetSheets(effectiveUserId);
 
 
-  // Portfolio value tracking
-  const { 
-    portfolioHistory, 
-    loading: portfolioLoading, 
-    error: portfolioError,
-    refreshPortfolioValue 
-  } = usePortfolioValue(effectiveUserId);
-
-  // Format summary values when portfolio history changes
-  useEffect(() => {
-    const formatSummaryValues = async () => {
-      if (portfolioHistory.length > 0) {
-        const latestValue = portfolioHistory[portfolioHistory.length - 1];
-        const assetsValue = await formatCurrency(latestValue.totalValue);
-        const netWorthValue = await formatCurrency(latestValue.totalValue - 1023853); // Subtract debts
-        
-        setFormattedSummaryValues({
-          assets: assetsValue,
-          netWorth: netWorthValue,
-        });
-      } else {
-        const zeroValue = await formatCurrency(0);
-        setFormattedSummaryValues({
-          assets: zeroValue,
-          netWorth: zeroValue,
-        });
-      }
-    };
-
-    formatSummaryValues();
-  }, [portfolioHistory, formatCurrency]);
 
   // Use demo mode if:
   // 1. No user and demo mode is enabled, OR  
@@ -142,6 +107,17 @@ export default function AssetsPage() {
 
       // Get section IDs for current sections
       const currentSectionIds = new Set(sections.map(s => s.id));
+      
+      // Clear assets from previous sheets when sections change
+      setAssetsBySection(prev => {
+        const filtered = Object.keys(prev).reduce((acc, sectionId) => {
+          if (currentSectionIds.has(sectionId)) {
+            acc[sectionId] = prev[sectionId];
+          }
+          return acc;
+        }, {} as { [sectionId: string]: Asset[] });
+        return filtered;
+      });
       
       // Only show loading if we don't have assets for any of the current sections
       const hasAssetsForCurrentSections = sections.some(section => assetsBySection[section.id]?.length > 0);
@@ -193,14 +169,10 @@ export default function AssetsPage() {
                   return aTime - bTime;
                 });
 
-                // Update state with all sections' assets - use functional update to prevent unnecessary re-renders
+                // Update state with all sections' assets
                 setAssetsBySection(prev => {
                   const updated = { ...prev, [section.id]: sortedAssets };
-                  // Only update if there's actually a change
-                  if (JSON.stringify(prev[section.id]) !== JSON.stringify(sortedAssets)) {
-                    return updated;
-                  }
-                  return prev;
+                  return updated;
                 });
                 setLoading(false);
               } catch (err) {
@@ -260,11 +232,20 @@ export default function AssetsPage() {
     return currentSheets.flatMap(sheet => sheet.sections || []);
   }, [currentSheets]);
 
-  // Get assets by section for all sheets (for SheetTabs)
-  const { assetsBySection: allAssetsBySection } = useAssetsForSections(allSections, effectiveUserId);
+  // Get assets by section for all sheets (for SheetTabs and TotalAssetsSummary)
+  const { assetsBySection: allAssetsBySection, loading: assetsLoading, error: assetsError } = useAssetsForSections(allSections, effectiveUserId);
 
-  // Get assets by section for current sheet only (for SectionList)
-  const { assetsBySection, loading: assetsLoading, error: assetsError } = useAssetsForSections(sections, effectiveUserId);
+  // Filter assets for current sheet only (for SectionList)
+  const assetsBySection = useMemo(() => {
+    const currentSectionIds = new Set(sections.map(s => s.id));
+    const filtered: { [sectionId: string]: Asset[] } = {};
+    Object.keys(allAssetsBySection).forEach(sectionId => {
+      if (currentSectionIds.has(sectionId)) {
+        filtered[sectionId] = allAssetsBySection[sectionId];
+      }
+    });
+    return filtered;
+  }, [allAssetsBySection, sections]);
 
   // Get assets for the current sheet only
   const currentSheetAssets = useMemo(() => {
@@ -432,7 +413,6 @@ export default function AssetsPage() {
         setIsAddAssetModalOpen(false);
         // The useAssetsForSections hook will automatically refresh and show the new asset
         // Update portfolio value tracking
-        await refreshPortfolioValue();
       } else {
         console.error('Error creating asset:', result.error);
       }
@@ -454,7 +434,6 @@ export default function AssetsPage() {
         if (result.success) {
           // The useAssetsForSections hook will automatically refresh and remove the asset
           // Update portfolio value tracking
-          await refreshPortfolioValue();
         } else {
           console.error('Failed to delete asset:', result.error);
           alert('Failed to delete asset. Please try again.');
@@ -503,7 +482,6 @@ export default function AssetsPage() {
   const handleInitializePortfolio = async () => {
     try {
       await initializePortfolioWithSampleData(effectiveUserId);
-      await refreshPortfolioValue();
       alert('Portfolio tracking initialized with sample data!');
     } catch (error) {
       console.error('Error initializing portfolio:', error);
@@ -647,11 +625,8 @@ export default function AssetsPage() {
         )}
 
 
-        {/* Portfolio Value Summary */}
-        <PortfolioValueSummary 
-          portfolioHistory={portfolioHistory} 
-          loading={portfolioLoading} 
-        />
+        {/* Total Assets Summary - All sheets combined */}
+        <TotalAssetsSummary assetsBySection={allAssetsBySection} />
 
         {/* Sheet Tabs */}
         <SheetTabs
@@ -664,6 +639,9 @@ export default function AssetsPage() {
           isAuthenticated={Boolean(user || isDemoUser)}
           assetsBySection={allAssetsBySection}
         />
+
+        {/* Total Investments Summary - Only for current sheet */}
+        <TotalInvestmentsSummary assetsBySection={assetsBySection} />
 
         {/* Section List */}
         <SectionList
@@ -691,61 +669,6 @@ export default function AssetsPage() {
           sheetName={activeSheet?.name}
         />
 
-        {/* Net Worth Summary Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-4">Net Worth</h3>
-          
-          <p className="text-sm text-gray-600 mb-4">
-            This is how your net worth is calculated. Make sure all of your accounts are connected for an accurate summary.
-          </p>
-          
-          <div className="space-y-3">
-            {/* Assets */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-2 h-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-sm text-gray-700">Assets</span>
-                <span className="text-xs text-gray-500">16 accounts</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">
-                {formattedSummaryValues?.assets || '$0'}
-              </span>
-            </div>
-            
-            {/* Debts */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-orange-100 rounded-full flex items-center justify-center">
-                  <svg className="w-2 h-2 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-sm text-gray-700">Debts</span>
-                <span className="text-xs text-gray-500">10 accounts</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">$1,023,853</span>
-            </div>
-            
-            {/* Net Worth */}
-            <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  <svg className="w-2 h-2 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-sm font-medium text-gray-700">Total Net Worth</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">
-                {formattedSummaryValues?.netWorth || '$0'}
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Modals */}
