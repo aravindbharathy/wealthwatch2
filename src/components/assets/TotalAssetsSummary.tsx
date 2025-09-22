@@ -132,7 +132,7 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-3">
+    <div className="p-2 mb-3">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg text-gray-900 mb-1">Total Assets</h2>

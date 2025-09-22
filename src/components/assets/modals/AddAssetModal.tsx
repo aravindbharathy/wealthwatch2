@@ -10,6 +10,7 @@ import CryptoForm from './forms/CryptoForm';
 import CryptoExchangeForm from './forms/CryptoExchangeForm';
 import HomeForm from './forms/HomeForm';
 import CarForm from './forms/CarForm';
+import BanksBrokeragesForm from './forms/BanksBrokeragesForm';
 import ManualAssetForm from './forms/ManualAssetForm';
 
 interface AddAssetModalProps {
@@ -73,6 +74,8 @@ export default function AddAssetModal({
     };
 
     switch (selectedAssetType) {
+      case 'banks_brokerages':
+        return <BanksBrokeragesForm {...commonProps} />;
       case 'stock_ticker':
         return <StockTickerForm {...commonProps} />;
       case 'cash':
@@ -93,9 +96,9 @@ export default function AddAssetModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 h-[80vh] flex flex-col">
-        <div className="p-6 flex-1 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full h-[90vh] flex flex-col">
+        <div className="p-8 flex-1 overflow-y-auto">
           {currentStep === 'type-selection' ? (
             <AssetTypeSelector
               onSelectType={handleTypeSelect}

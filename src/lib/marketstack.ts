@@ -298,7 +298,19 @@ export async function getLatestIntradayPrice(symbol: string): Promise<IntradayDa
     }
     return null;
   } catch (error: any) {
-    console.error('Error fetching latest intraday price:', error);
+    // Check if it's a 403 error (access restricted - subscription plan doesn't support intraday)
+    if (error.response?.status === 403) {
+      const errorData = error.response.data;
+      if (errorData?.code === 'SUBSCRIPTION_LIMITATION') {
+        // Display the user-friendly error message from the API
+        console.warn(errorData.error);
+        throw new Error(errorData.error);
+      } else if (errorData?.error?.code === 'function_access_restricted') {
+        const detailedMessage = `Intraday data not available - subscription plan doesn't support real-time data for ${symbol}`;
+        console.warn(detailedMessage);
+        throw new Error(detailedMessage);
+      }
+    }
     
     // Check if it's a 422 error (unprocessable content)
     if (error.response?.status === 422) {
@@ -308,6 +320,7 @@ export async function getLatestIntradayPrice(symbol: string): Promise<IntradayDa
       }
     }
     
+    console.error('Error fetching latest intraday price:', error);
     throw error;
   }
 }
@@ -339,8 +352,13 @@ export async function getStockWithPrice(symbol: string): Promise<StockSearchResu
       try {
         priceData = await getLatestIntradayPrice(symbol);
         dataSource = 'Intraday';
-      } catch (intradayError) {
-        console.warn(`Intraday data not available for ${symbol}, falling back to EOD:`, intradayError);
+      } catch (intradayError: any) {
+        // Check if it's a subscription plan issue (403 error)
+        if (intradayError.message?.includes('subscription plan doesn\'t support')) {
+          console.warn(`Intraday data not available for ${symbol} - subscription plan limitation, falling back to EOD`);
+        } else {
+          console.warn(`Intraday data not available for ${symbol}, falling back to EOD:`, intradayError.message);
+        }
       }
     }
     

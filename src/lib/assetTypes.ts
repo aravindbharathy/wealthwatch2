@@ -155,6 +155,25 @@ export const ASSET_TYPES: Record<Asset['type'], AssetTypeConfig> = {
       optionalFields: ['metalType', 'purity', 'weight', 'storageLocation', 'purchasePrice']
     }
   },
+  banks_brokerages: {
+    type: 'banks_brokerages',
+    label: 'Banks & Brokerages',
+    description: 'Bank accounts, brokerage accounts, and investment accounts',
+    icon: '🏦',
+    color: 'blue',
+    requiresSymbol: false,
+    requiresExchange: false,
+    hasPriceUpdates: false,
+    formComponent: 'BanksBrokeragesForm',
+    category: 'financial',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR', 'BRL', 'MXN'],
+    customFields: ['institution', 'accountType', 'accountNumber'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'currentValue', 'currency'],
+      optionalFields: ['institution', 'accountType', 'accountNumber', 'description']
+    }
+  },
   generic_asset: {
     type: 'generic_asset',
     label: 'Manual Assets',
@@ -203,7 +222,7 @@ export const ASSET_CATEGORIES = {
     label: 'Financial Assets',
     description: 'Traditional financial instruments',
     icon: '💼',
-    types: ['stock_ticker', 'cash'] as Asset['type'][]
+    types: ['stock_ticker', 'cash', 'banks_brokerages'] as Asset['type'][]
   },
   digital: {
     label: 'Digital Assets',

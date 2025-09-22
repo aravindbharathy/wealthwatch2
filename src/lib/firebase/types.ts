@@ -104,7 +104,7 @@ export interface AssetPerformance {
 export interface Asset extends BaseDocument {
   id: string;
   name: string;
-  type: 'stock_ticker' | 'cash' | 'crypto_ticker' | 'crypto_exchange_wallet' | 'home' | 'car' | 'precious_metals' | 'generic_asset';
+  type: 'stock_ticker' | 'cash' | 'crypto_ticker' | 'crypto_exchange_wallet' | 'home' | 'car' | 'precious_metals' | 'banks_brokerages' | 'generic_asset';
   subType?: string; // For finer categorization
   symbol?: string; // e.g., 'AAPL', 'BTC'
   exchange?: string; // e.g., 'NASDAQ', 'Binance'

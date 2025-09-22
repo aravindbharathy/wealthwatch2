@@ -118,14 +118,14 @@ export default function AssetTable({
     return (
       <div className="animate-pulse">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className={`grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-2 px-2 ${
+          <div key={i} className={`grid grid-cols-[16px_1fr_64px_80px_80px_40px] gap-4 items-center py-1 px-2 ${
             i < 2 ? 'border-b border-gray-100' : ''
           }`}>
             <div></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200"></div>
+            <div className="h-4 bg-gray-200"></div>
+            <div className="h-4 bg-gray-200"></div>
+            <div className="h-4 bg-gray-200"></div>
             <div></div>
           </div>
         ))}
@@ -136,7 +136,7 @@ export default function AssetTable({
   if (assets.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="w-12 h-12 bg-gray-100 flex items-center justify-center mx-auto mb-4">
           <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
           </svg>
@@ -262,7 +262,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-2 px-2 hover:bg-gray-50 group transition-all duration-200 ${
+      className={`relative grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-1 px-2 hover:bg-gray-50 group transition-all duration-200 ${
         !isLastAsset ? 'border-b border-gray-100' : ''
       } ${isDragging ? 'z-50 pointer-events-none' : ''}`}
     >
@@ -272,7 +272,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
         <div
           {...attributes}
           {...listeners}
-          className="cursor-move p-1 hover:bg-gray-200 rounded transition-colors duration-150 group/drag"
+          className="cursor-move p-1 hover:bg-gray-200 transition-colors duration-150 group/drag"
           title="Drag to reorder"
         >
           <svg className="w-3 h-3 text-gray-400 group-hover/drag:text-gray-600 transition-colors duration-150" fill="currentColor" viewBox="0 0 20 20">
@@ -283,7 +283,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
 
       {/* Asset Info */}
       <div className="text-left">
-        <div className="font-medium text-gray-900">
+        <div className="text-sm font-normal text-gray-900">
           {asset.name}
           {asset.symbol && (
             <span className="text-xs text-gray-500 font-normal"> - {asset.symbol}</span>
@@ -332,7 +332,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
               e.stopPropagation();
               openPopup(asset.id, e);
             }}
-            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-1 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
             title="More options"
             type="button"
           >
@@ -367,7 +367,7 @@ const InterAssetDropZone: React.FC<InterAssetDropZoneProps> = ({ sectionId, targ
       ref={setNodeRef}
       className={`transition-all duration-200 ease-in-out ${
         isOver 
-          ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded-lg flex items-center justify-center' 
+          ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 flex items-center justify-center' 
           : 'h-0 bg-transparent'
       }`}
     >
@@ -414,7 +414,7 @@ const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete
   return (
     <div
       ref={menuRef}
-      className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[160px]"
+      className="fixed z-[9999] bg-white border border-gray-200 shadow-xl py-1 min-w-[160px]"
       style={{
         top: position.top,
         left: position.left,

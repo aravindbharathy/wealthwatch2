@@ -193,7 +193,7 @@ export default function SectionItem({
                       e.stopPropagation();
                       setShowActions(!showActions);
                     }}
-                    className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                    className="p-1 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
                     title="Section options"
                   >
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -215,7 +215,7 @@ export default function SectionItem({
     <div 
       ref={isSectionEmpty ? setDroppableRef : undefined}
       className={`relative transition-all duration-200 overflow-visible mb-2 ${
-        isOver && isSectionEmpty ? 'border-blue-400 bg-blue-50 shadow-md rounded-lg border' : ''
+        isOver && isSectionEmpty ? 'border-blue-400 bg-blue-50 shadow-md border' : ''
       }`}
     >
 
@@ -278,7 +278,7 @@ export default function SectionItem({
                     e.stopPropagation();
                     setShowActions(!showActions);
                   }}
-                  className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                  className="p-1 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
                   title="Section options"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -287,7 +287,7 @@ export default function SectionItem({
                 </button>
 
                 {showActions && (
-                  <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[160px] z-10">
+                  <div className="absolute right-0 top-8 bg-white border border-gray-200 shadow-xl py-1 min-w-[160px] z-10">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -324,7 +324,7 @@ export default function SectionItem({
 
       {/* Section Content */}
       {section.isExpanded && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-visible">
+        <div className="bg-white shadow-sm border border-gray-200 overflow-visible">
           {/* Asset Table */}
           <div className="overflow-visible">
             <AssetTable
@@ -345,7 +345,7 @@ export default function SectionItem({
             <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
               <button
                 onClick={() => onAddAsset(section.id)}
-                className="flex items-center space-x-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                className="flex items-center space-x-2 text-sm font-normal text-gray-600 hover:text-gray-900"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

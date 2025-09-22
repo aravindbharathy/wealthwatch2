@@ -2,26 +2,142 @@
 
 import React from 'react';
 import { Asset } from '@/lib/firebase/types';
-import { ASSET_TYPES, ASSET_CATEGORIES } from '@/lib/assetTypes';
+import { ASSET_TYPES } from '@/lib/assetTypes';
 
 interface AssetTypeSelectorProps {
   onSelectType: (type: Asset['type']) => void;
   onClose: () => void;
 }
 
+// Modern SVG Icons
+const ModernIcons = {
+  banks: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+  ),
+  stock: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+    </svg>
+  ),
+  crypto: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+    </svg>
+  ),
+  wallet: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+  ),
+  portfolio: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  ),
+  home: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+  ),
+  car: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M8 7H6a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2z" />
+    </svg>
+  ),
+  metals: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  ),
+  domain: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
+    </svg>
+  ),
+  ai: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  ),
+  manual: (
+    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  )
+};
+
 export default function AssetTypeSelector({ onSelectType, onClose }: AssetTypeSelectorProps) {
   const handleTypeSelect = (type: Asset['type']) => {
     onSelectType(type);
   };
 
+  const assetOptions = [
+    {
+      type: 'banks_brokerages' as Asset['type'],
+      label: 'Banks & Brokerages',
+      icon: ModernIcons.banks,
+      description: 'Bank accounts, brokerage accounts, and investment accounts'
+    },
+    {
+      type: 'stock_ticker' as Asset['type'],
+      label: 'Stock Tickers',
+      icon: ModernIcons.stock,
+      description: 'Individual stocks, ETFs, and mutual funds'
+    },
+    {
+      type: 'cash' as Asset['type'],
+      label: 'Cash',
+      icon: ModernIcons.banks,
+      description: 'Cash and cash equivalents'
+    },
+    {
+      type: 'crypto_ticker' as Asset['type'],
+      label: 'Crypto Tickers',
+      icon: ModernIcons.crypto,
+      description: 'Individual cryptocurrencies'
+    },
+    {
+      type: 'crypto_exchange_wallet' as Asset['type'],
+      label: 'Crypto Exchanges & Wallets',
+      icon: ModernIcons.wallet,
+      description: 'Crypto exchange accounts and wallets'
+    },
+    {
+      type: 'home' as Asset['type'],
+      label: 'Homes',
+      icon: ModernIcons.home,
+      description: 'Real estate properties'
+    },
+    {
+      type: 'car' as Asset['type'],
+      label: 'Cars',
+      icon: ModernIcons.car,
+      description: 'Vehicles and automobiles'
+    },
+    {
+      type: 'precious_metals' as Asset['type'],
+      label: 'Precious Metals',
+      icon: ModernIcons.metals,
+      description: 'Gold, silver, and other precious metals'
+    },
+    {
+      type: 'generic_asset' as Asset['type'],
+      label: 'Manual Assets',
+      icon: ModernIcons.manual,
+      description: 'Any other asset type'
+    }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Add Asset</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Add Asset</h2>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-gray-400 hover:text-gray-600 transition-colors"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -29,145 +145,27 @@ export default function AssetTypeSelector({ onSelectType, onClose }: AssetTypeSe
         </button>
       </div>
 
-      {/* Asset Type Grid */}
-      <div className="space-y-6">
-        {/* Financial Assets */}
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Financial Assets</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {/* Stock Tickers */}
-            <button
-              onClick={() => handleTypeSelect('stock_ticker')}
-              className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">{ASSET_TYPES.stock_ticker.icon}</div>
-                <div>
-                  <div className="font-medium text-gray-900">{ASSET_TYPES.stock_ticker.label}</div>
-                  <div className="text-xs text-gray-500">{ASSET_TYPES.stock_ticker.description}</div>
+      {/* Modern Grid Layout */}
+      <div className="grid grid-cols-2 gap-4">
+        {assetOptions.map((option) => (
+          <button
+            key={option.type}
+            onClick={() => handleTypeSelect(option.type)}
+            className="group p-6 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <div className="flex flex-col items-center text-center space-y-3">
+              <div className="text-gray-600 group-hover:text-gray-900 transition-colors">
+                {option.icon}
+              </div>
+              <div>
+                <div className="font-medium text-gray-900 group-hover:text-gray-900">
+                  {option.label}
                 </div>
               </div>
-            </button>
-
-            {/* Cash */}
-            <button
-              onClick={() => handleTypeSelect('cash')}
-              className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">{ASSET_TYPES.cash.icon}</div>
-                <div>
-                  <div className="font-medium text-gray-900">{ASSET_TYPES.cash.label}</div>
-                  <div className="text-xs text-gray-500">{ASSET_TYPES.cash.description}</div>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Digital Assets */}
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Digital Assets</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {/* Crypto Tickers */}
-            <button
-              onClick={() => handleTypeSelect('crypto_ticker')}
-              className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">{ASSET_TYPES.crypto_ticker.icon}</div>
-                <div>
-                  <div className="font-medium text-gray-900">{ASSET_TYPES.crypto_ticker.label}</div>
-                  <div className="text-xs text-gray-500">{ASSET_TYPES.crypto_ticker.description}</div>
-                </div>
-              </div>
-            </button>
-
-            {/* Crypto Exchanges & Wallets */}
-            <button
-              onClick={() => handleTypeSelect('crypto_exchange_wallet')}
-              className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">{ASSET_TYPES.crypto_exchange_wallet.icon}</div>
-                <div>
-                  <div className="font-medium text-gray-900">{ASSET_TYPES.crypto_exchange_wallet.label}</div>
-                  <div className="text-xs text-gray-500">{ASSET_TYPES.crypto_exchange_wallet.description}</div>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Physical Assets */}
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Physical Assets</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {/* Homes */}
-            <button
-              onClick={() => handleTypeSelect('home')}
-              className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">{ASSET_TYPES.home.icon}</div>
-                <div>
-                  <div className="font-medium text-gray-900">{ASSET_TYPES.home.label}</div>
-                  <div className="text-xs text-gray-500">{ASSET_TYPES.home.description}</div>
-                </div>
-              </div>
-            </button>
-
-            {/* Cars */}
-            <button
-              onClick={() => handleTypeSelect('car')}
-              className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">{ASSET_TYPES.car.icon}</div>
-                <div>
-                  <div className="font-medium text-gray-900">{ASSET_TYPES.car.label}</div>
-                  <div className="text-xs text-gray-500">{ASSET_TYPES.car.description}</div>
-                </div>
-              </div>
-            </button>
-
-            {/* Precious Metals */}
-            <button
-              onClick={() => handleTypeSelect('precious_metals')}
-              className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">{ASSET_TYPES.precious_metals.icon}</div>
-                <div>
-                  <div className="font-medium text-gray-900">{ASSET_TYPES.precious_metals.label}</div>
-                  <div className="text-xs text-gray-500">{ASSET_TYPES.precious_metals.description}</div>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Generic Assets */}
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Generic</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {/* Manual Assets */}
-            <button
-              onClick={() => handleTypeSelect('generic_asset')}
-              className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">{ASSET_TYPES.generic_asset.icon}</div>
-                <div>
-                  <div className="font-medium text-gray-900">{ASSET_TYPES.generic_asset.label}</div>
-                  <div className="text-xs text-gray-500">{ASSET_TYPES.generic_asset.description}</div>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
+            </div>
+          </button>
+        ))}
       </div>
-
     </div>
   );
 }
