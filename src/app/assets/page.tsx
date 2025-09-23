@@ -689,6 +689,7 @@ export default function AssetsPage() {
         onClose={() => setIsAddAssetModalOpen(false)}
         onSubmit={handleCreateAsset}
         sectionId={selectedSectionId}
+        userId={effectiveUserId}
       />
 
       <MoveAssetModal

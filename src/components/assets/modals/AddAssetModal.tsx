@@ -18,6 +18,7 @@ interface AddAssetModalProps {
   onClose: () => void;
   onSubmit: (asset: CreateAssetInput) => Promise<void>;
   sectionId: string;
+  userId: string;
   loading?: boolean;
 }
 
@@ -26,6 +27,7 @@ export default function AddAssetModal({
   onClose,
   onSubmit,
   sectionId,
+  userId,
   loading = false,
 }: AddAssetModalProps) {
   const [currentStep, setCurrentStep] = useState<'type-selection' | 'form'>('type-selection');
@@ -75,7 +77,7 @@ export default function AddAssetModal({
 
     switch (selectedAssetType) {
       case 'banks_brokerages':
-        return <BanksBrokeragesForm {...commonProps} />;
+        return <BanksBrokeragesForm {...commonProps} sectionId={sectionId} userId={userId} />;
       case 'stock_ticker':
         return <StockTickerForm {...commonProps} />;
       case 'cash':

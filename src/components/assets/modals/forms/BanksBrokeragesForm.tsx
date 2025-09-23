@@ -4,15 +4,18 @@ import React, { useState } from 'react';
 import { Asset, CreateAssetInput } from '@/lib/firebase/types';
 import CurrencyInput from '@/components/CurrencyInput';
 import CurrencyPreferenceSelector from '@/components/CurrencyPreferenceSelector';
+import { AccountService } from '@/lib/services/accountService';
 
 interface BanksBrokeragesFormProps {
   onSubmit: (asset: CreateAssetInput) => Promise<void>;
   onBack: () => void;
   loading?: boolean;
   initialData?: Partial<Asset>;
+  sectionId: string;
+  userId: string;
 }
 
-export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false, initialData }: BanksBrokeragesFormProps) {
+export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false, initialData, sectionId, userId }: BanksBrokeragesFormProps) {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     currentValue: initialData?.currentValue || 0,
@@ -25,12 +28,54 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  
+  // Plaid integration state
+  const [plaidMode, setPlaidMode] = useState(false);
+  const [accessToken, setAccessToken] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState('');
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handlePlaidSync = async () => {
+    if (!accessToken.trim()) {
+      setSyncError('Please enter a valid access token');
+      return;
+    }
+
+    setSyncing(true);
+    setSyncError('');
+    setSyncSuccess(false);
+
+    try {
+      const result = await AccountService.syncPlaidAccount(accessToken, sectionId, userId);
+      
+      // Submit the account summary as an asset
+      await onSubmit(result.accountSummary);
+      
+      setSyncSuccess(true);
+      setSyncError('');
+      
+      // Reset form after successful sync
+      setTimeout(() => {
+        setPlaidMode(false);
+        setAccessToken('');
+        setSyncSuccess(false);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Plaid sync error:', error);
+      setSyncError(error instanceof Error ? error.message : 'Failed to sync with Plaid');
+      setSyncSuccess(false);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -109,6 +154,81 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
+      </div>
+
+      {/* Plaid Integration Section */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <span className="text-2xl">🔗</span>
+            <h4 className="font-medium text-blue-900">Connect with Plaid</h4>
+          </div>
+          {!plaidMode && (
+            <button
+              type="button"
+              onClick={() => setPlaidMode(true)}
+              className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Get Data from Plaid
+            </button>
+          )}
+        </div>
+        
+        {plaidMode && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">
+                Plaid Access Token (Sandbox)
+              </label>
+              <input
+                type="text"
+                value={accessToken}
+                onChange={(e) => setAccessToken(e.target.value)}
+                placeholder="access-sandbox-xxx"
+                className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={syncing}
+              />
+              <p className="text-xs text-blue-600 mt-1">
+                Use sandbox token for testing. In production, this would be handled by Plaid Link.
+              </p>
+            </div>
+            
+            {syncError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-700">{syncError}</p>
+              </div>
+            )}
+            
+            {syncSuccess && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-700">✅ Successfully connected and synced accounts!</p>
+              </div>
+            )}
+            
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={handlePlaidSync}
+                disabled={!accessToken.trim() || syncing}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {syncing ? 'Syncing...' : 'Connect & Sync'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlaidMode(false);
+                  setAccessToken('');
+                  setSyncError('');
+                  setSyncSuccess(false);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Form Fields */}
