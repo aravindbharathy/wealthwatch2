@@ -189,7 +189,7 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
                 disabled={syncing}
               />
               <p className="text-xs text-blue-600 mt-1">
-                Use sandbox token for testing. In production, this would be handled by Plaid Link.
+                For testing, use: <code className="bg-blue-100 px-1 rounded">test-sandbox</code> or a real Plaid access token starting with <code className="bg-blue-100 px-1 rounded">access-sandbox-</code>
               </p>
             </div>
             
