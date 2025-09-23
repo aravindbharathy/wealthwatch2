@@ -18,30 +18,19 @@ export async function POST(request: NextRequest) {
     
     // For testing purposes, if access_token is 'test-sandbox', return mock data
     if (access_token === 'test-sandbox') {
-      const fs = await import('fs');
-      const path = await import('path');
+      // Import the mock data directly
+      const mockData = await import('../../plaid_sandbox/holdings-get.json');
       
-      try {
-        const mockDataPath = path.join(process.cwd(), 'src/app/plaid_sandbox/holdings-get.json');
-        const mockData = JSON.parse(fs.readFileSync(mockDataPath, 'utf8'));
-        
-        return NextResponse.json({
-          success: true,
-          data: {
-            accounts: mockData.accounts || [],
-            holdings: mockData.holdings || [],
-            securities: mockData.securities || [],
-            item: mockData.item || null,
-            request_id: 'mock-request-id'
-          },
-        });
-      } catch (error) {
-        console.error('Error reading mock data:', error);
-        return NextResponse.json(
-          { success: false, error: 'Failed to load mock data' },
-          { status: 500 }
-        );
-      }
+      return NextResponse.json({
+        success: true,
+        data: {
+          accounts: mockData.default.accounts || [],
+          holdings: mockData.default.holdings || [],
+          securities: mockData.default.securities || [],
+          item: mockData.default.item || null,
+          request_id: 'mock-request-id'
+        },
+      });
     }
     
     const requestBody = {
