@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     // For testing purposes, if access_token is 'test-sandbox', return mock data
     if (access_token === 'test-sandbox') {
       // Import the mock data directly
-      const mockData = await import('../../plaid_sandbox/holdings-get.json');
+      const mockData = await import('../../../../lib/mockData/plaidHoldings.json');
       
       return NextResponse.json({
         success: true,
