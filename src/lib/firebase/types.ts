@@ -75,8 +75,10 @@ export interface AssetCashFlow {
 
 export interface AssetAccountMapping {
   isLinked: boolean;
-  accountId?: string;
-  externalId?: string;
+  accountId?: string; // Our internal account ID
+  providerAccountId?: string; // Plaid account_id
+  providerSecurityId?: string; // Plaid security_id for holdings
+  externalId?: string; // Other provider IDs
 }
 
 export interface AssetMetadata {
@@ -104,7 +106,7 @@ export interface AssetPerformance {
 export interface Asset extends BaseDocument {
   id: string;
   name: string;
-  type: 'stock_ticker' | 'cash' | 'crypto_ticker' | 'crypto_exchange_wallet' | 'home' | 'car' | 'precious_metals' | 'banks_brokerages' | 'generic_asset';
+  type: 'stock_ticker' | 'cash' | 'crypto_ticker' | 'crypto_exchange_wallet' | 'home' | 'car' | 'precious_metals' | 'banks_brokerages' | 'generic_asset' | 'account';
   subType?: string; // For finer categorization
   symbol?: string; // e.g., 'AAPL', 'BTC'
   exchange?: string; // e.g., 'NASDAQ', 'Binance'
@@ -235,18 +237,56 @@ export interface AccountPerformance {
 export interface Account extends BaseDocument {
   id: string;
   name: string;
-  type: 'checking' | 'savings' | 'brokerage' | 'retirement' | 'credit_card' | 'investment' | 'loan';
+  officialName?: string; // Official name from institution
+  type: 'investment' | 'credit' | 'depository' | 'loan' | 'brokerage' | 'other';
+  subtype?: string; // ira, 401k, money market, etc.
   institution: string;
-  accountNumber?: string;
   currency: string;
-  balances: AccountBalances;
-  holdings?: AccountHoldings[];
-  isActive: boolean;
+  
+  // Plaid-specific fields
+  providerAccountId: string; // Plaid account_id
+  providerItemId?: string; // Plaid item_id
+  mask?: string; // Account number mask (e.g., "4444")
+  
+  // Balances
+  balances: {
+    available?: number; // Withdrawable cash
+    current: number; // Total value of all assets
+    currencyCode: string;
+    lastUpdated: Timestamp;
+  };
+  
+  // Connection info
   connectionStatus: 'connected' | 'disconnected' | 'error' | 'manual';
+  provider: 'plaid' | 'yodlee' | 'manual';
+  lastSyncAt?: Timestamp;
+  syncErrors?: string[];
+  
+  // Holdings (stored as linked assets)
+  holdingAssetIds: string[]; // References to assets held in this account
+  
+  // Section placement
+  sectionId: string; // Which section this account appears in
+  position: number; // Position within section
+  
+  // Performance (calculated from holdings)
+  performance: AccountPerformance;
+  
+  // Legacy fields for backward compatibility
+  accountNumber?: string;
+  isActive: boolean;
   integrationInfo?: AccountIntegrationInfo;
   transactions?: AccountTransaction[];
-  performance: AccountPerformance;
   valueByDate?: AccountValueEntry[];
+}
+
+// Institution Provider Mapping
+export interface InstitutionProviderMapping extends BaseDocument {
+  institutionId: string; // Plaid institution_id
+  institutionName: string;
+  preferredProvider: 'plaid' | 'yodlee';
+  supportedProducts: string[]; // ['investments', 'auth', 'transactions']
+  isActive: boolean;
 }
 
 // 5. Portfolio Analytics Collection Types

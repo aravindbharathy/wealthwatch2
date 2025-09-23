@@ -192,6 +192,25 @@ export const ASSET_TYPES: Record<Asset['type'], AssetTypeConfig> = {
       requiredFields: ['name', 'currentValue', 'currency'],
       optionalFields: ['category', 'tags', 'description']
     }
+  },
+  account: {
+    type: 'account',
+    label: 'Connected Accounts',
+    description: 'Bank and brokerage accounts connected via Plaid',
+    icon: '🔗',
+    color: 'blue',
+    requiresSymbol: false,
+    requiresExchange: false,
+    hasPriceUpdates: false,
+    formComponent: 'AccountForm',
+    category: 'financial',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD'],
+    customFields: ['institution', 'providerAccountId', 'mask'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'institution', 'providerAccountId'],
+      optionalFields: ['officialName', 'mask', 'description']
+    }
   }
 };
 
@@ -222,7 +241,7 @@ export const ASSET_CATEGORIES = {
     label: 'Financial Assets',
     description: 'Traditional financial instruments',
     icon: '💼',
-    types: ['stock_ticker', 'cash', 'banks_brokerages'] as Asset['type'][]
+    types: ['stock_ticker', 'cash', 'banks_brokerages', 'account'] as Asset['type'][]
   },
   digital: {
     label: 'Digital Assets',
@@ -251,6 +270,7 @@ export const POPULAR_ASSET_TYPES: Asset['type'][] = [
   'crypto_ticker',
   'home',
   'car',
+  'account',
   'generic_asset'
 ];
 
