@@ -57,8 +57,10 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
     try {
       const result = await AccountService.syncPlaidAccount(accessToken, sectionId, userId);
       
-      // Submit the account summary as an asset
-      await onSubmit(result.accountSummary);
+      // Submit each account as a separate asset
+      for (const accountAsset of result.accountAssets) {
+        await onSubmit(accountAsset);
+      }
       
       setSyncSuccess(true);
       setSyncError('');
@@ -201,7 +203,7 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
             
             {syncSuccess && (
               <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-700">✅ Successfully connected and synced accounts!</p>
+                <p className="text-sm text-green-700">✅ Successfully connected accounts! Each account will appear as a separate row in your section.</p>
               </div>
             )}
             
