@@ -1,6 +1,6 @@
 import { Account, Asset, CreateAssetInput } from '../firebase/types';
 import { PlaidService } from './plaidService';
-import { addDocument } from '../firebase/firebaseUtils';
+import { addDocument, updateDocument } from '../firebase/firebaseUtils';
 
 export class AccountService {
   /**
@@ -56,8 +56,8 @@ export class AccountService {
             const account = accounts.find(a => a.id === accountId);
             if (account) {
               account.holdingAssetIds.push(savedAsset.id);
-              // Note: In a real implementation, you'd update the account document here
-              // await updateDocument('accounts', accountId, { holdingAssetIds: account.holdingAssetIds }, userId);
+              // Update the account document with the new holding reference
+              await updateDocument('accounts', accountId, { holdingAssetIds: account.holdingAssetIds }, userId);
             }
           }
         }

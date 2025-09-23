@@ -56,23 +56,23 @@ export const signInWithGoogle = async () => {
 };
 
 // Generic Firestore functions
-export const addDocument = (collectionName: string, data: any) =>
-  addDoc(collection(db, collectionName), {
+export const addDocument = (collectionName: string, data: any, userId: string) =>
+  addDoc(collection(db, `users/${userId}/${collectionName}`), {
     ...data,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
 
-export const getDocuments = async (collectionName: string) => {
-  const querySnapshot = await getDocs(collection(db, collectionName));
+export const getDocuments = async (collectionName: string, userId: string) => {
+  const querySnapshot = await getDocs(collection(db, `users/${userId}/${collectionName}`));
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   }));
 };
 
-export const getDocument = async (collectionName: string, id: string) => {
-  const docRef = doc(db, collectionName, id);
+export const getDocument = async (collectionName: string, id: string, userId: string) => {
+  const docRef = doc(db, `users/${userId}/${collectionName}`, id);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     return { id: docSnap.id, ...docSnap.data() };
@@ -80,14 +80,14 @@ export const getDocument = async (collectionName: string, id: string) => {
   return null;
 };
 
-export const updateDocument = (collectionName: string, id: string, data: any) =>
-  updateDoc(doc(db, collectionName, id), {
+export const updateDocument = (collectionName: string, id: string, data: any, userId: string) =>
+  updateDoc(doc(db, `users/${userId}/${collectionName}`, id), {
     ...data,
     updatedAt: serverTimestamp()
   });
 
-export const deleteDocument = (collectionName: string, id: string) =>
-  deleteDoc(doc(db, collectionName, id));
+export const deleteDocument = (collectionName: string, id: string, userId: string) =>
+  deleteDoc(doc(db, `users/${userId}/${collectionName}`, id));
 
 // Paginated query function
 export const getPaginatedDocuments = async <T>(
