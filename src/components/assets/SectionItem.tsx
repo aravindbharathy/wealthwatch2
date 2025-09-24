@@ -18,6 +18,7 @@ interface SectionItemProps {
   onDeleteAsset: (assetId: string) => void;
   onMoveAsset?: (assetId: string) => void;
   onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
+  onViewHoldings?: (assetId: string) => void;
   loading?: boolean;
   isAuthenticated?: boolean;
   activeAssetId?: string | null;
@@ -34,6 +35,7 @@ export default function SectionItem({
   onDeleteAsset,
   onMoveAsset,
   onReorderAssets,
+  onViewHoldings,
   loading = false,
   isAuthenticated = true,
   activeAssetId,
@@ -70,6 +72,11 @@ export default function SectionItem({
         const currencyGroups: { [currency: string]: { costBasis: number; currentValue: number } } = {};
         
         for (const asset of assets) {
+          // Skip undefined or invalid assets
+          if (!asset || !asset.id) {
+            continue;
+          }
+          
           const currency = asset.currency || 'USD';
           if (!currencyGroups[currency]) {
             currencyGroups[currency] = { costBasis: 0, currentValue: 0 };
@@ -78,7 +85,7 @@ export default function SectionItem({
           if (asset.costBasis && asset.costBasis > 0) {
             currencyGroups[currency].costBasis += asset.costBasis;
           }
-          currencyGroups[currency].currentValue += asset.currentValue;
+          currencyGroups[currency].currentValue += asset.currentValue || 0;
         }
         
         let convertedInvested = 0;
@@ -127,9 +134,13 @@ export default function SectionItem({
         console.error('Error converting section totals:', error);
         // Fallback to original values
         const totalInvested = assets.reduce((sum, asset) => {
+          if (!asset || !asset.id) return sum;
           return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
         }, 0);
-        const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
+        const totalValue = assets.reduce((sum, asset) => {
+          if (!asset || !asset.id) return sum;
+          return sum + (asset.currentValue || 0);
+        }, 0);
         const totalReturn = totalValue - totalInvested;
         const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
         
@@ -333,6 +344,7 @@ export default function SectionItem({
               onDeleteAsset={onDeleteAsset}
               onMoveAsset={onMoveAsset}
               onReorderAssets={onReorderAssets}
+              onViewHoldings={onViewHoldings}
               loading={loading}
               isAuthenticated={isAuthenticated}
               sectionId={section.id}

@@ -4,6 +4,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
+
+// Development logging flag
+const DEBUG_LOGGING = process.env.NODE_ENV === 'development';
 import {
   collection,
   addDoc,
@@ -80,14 +83,50 @@ export const getDocument = async (collectionName: string, id: string, userId: st
   return null;
 };
 
-export const updateDocument = (collectionName: string, id: string, data: any, userId: string) =>
-  updateDoc(doc(db, `users/${userId}/${collectionName}`, id), {
-    ...data,
-    updatedAt: serverTimestamp()
-  });
+export const updateDocument = async (collectionName: string, id: string, data: any, userId: string) => {
+  try {
+    const docRef = doc(db, `users/${userId}/${collectionName}`, id);
+    
+    const updateData = {
+      ...data,
+      updatedAt: serverTimestamp()
+    };
+    
+    await updateDoc(docRef, updateData);
+  } catch (error) {
+    console.error('❌ updateDocument error:', error);
+    throw error;
+  }
+};
 
-export const deleteDocument = (collectionName: string, id: string, userId: string) =>
-  deleteDoc(doc(db, `users/${userId}/${collectionName}`, id));
+export const deleteDocument = async (collectionName: string, id: string, userId: string): Promise<boolean> => {
+  const fullPath = `users/${userId}/${collectionName}/${id}`;
+  
+  try {
+    // First, let's check if the document exists
+    const docRef = doc(db, `users/${userId}/${collectionName}`, id);
+    
+    // Try to get the document first to see if it exists
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      console.warn('⚠️ Document does not exist, cannot delete');
+      return false; // Return false to indicate no deletion occurred
+    }
+    
+    // Now delete the document
+    await deleteDoc(docRef);
+    
+    // Verify deletion by trying to get the document again
+    const verifySnap = await getDoc(docRef);
+    
+    return !verifySnap.exists(); // Return true only if actually deleted
+    
+  } catch (error) {
+    console.error('❌ deleteDocument error:', error);
+    throw error;
+  }
+};
 
 // Paginated query function
 export const getPaginatedDocuments = async <T>(
@@ -186,7 +225,7 @@ export const createUser = async (userId: string, userData: Partial<User>): Promi
 
 export const getUser = async (userId: string): Promise<ApiResponse<User>> => {
   try {
-    const userDoc = await getDocument('users', userId);
+    const userDoc = await getDocument('users', userId, userId);
     if (!userDoc) {
       return { success: false, error: 'User not found' };
     }
@@ -198,7 +237,7 @@ export const getUser = async (userId: string): Promise<ApiResponse<User>> => {
 
 export const updateUser = async (userId: string, updates: Partial<User>): Promise<ApiResponse<User>> => {
   try {
-    await updateDocument('users', userId, updates);
+    await updateDocument('users', userId, updates, userId);
     const updatedUser = await getUser(userId);
     return updatedUser;
   } catch (error) {
@@ -291,7 +330,7 @@ export const getUserAssets = async (userId: string): Promise<ApiResponse<Asset[]
 
 export const getAsset = async (userId: string, assetId: string): Promise<ApiResponse<Asset>> => {
   try {
-    const assetDoc = await getDocument(`users/${userId}/assets`, assetId);
+    const assetDoc = await getDocument('assets', assetId, userId);
     if (!assetDoc) {
       return { success: false, error: 'Asset not found' };
     }
@@ -303,19 +342,31 @@ export const getAsset = async (userId: string, assetId: string): Promise<ApiResp
 
 export const updateAsset = async (userId: string, assetId: string, updates: Partial<Asset>): Promise<ApiResponse<Asset>> => {
   try {
-    await updateDocument(`users/${userId}/assets`, assetId, updates);
+    await updateDocument('assets', assetId, updates, userId);
     const updatedAsset = await getAsset(userId, assetId);
     return updatedAsset;
   } catch (error) {
+    console.error('❌ updateAsset error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
 
 export const deleteAsset = async (userId: string, assetId: string): Promise<ApiResponse<void>> => {
   try {
-    await deleteDocument(`users/${userId}/assets`, assetId);
-    return { success: true };
+    
+    // Test Firebase connection first
+    const testRef = doc(db, `users/${userId}/assets`, assetId);
+    
+    const wasDeleted = await deleteDocument('assets', assetId, userId);
+    
+    if (wasDeleted) {
+      return { success: true };
+    } else {
+      console.warn('⚠️ Asset was not deleted (document may not exist)');
+      return { success: false, error: 'Asset not found or already deleted' };
+    }
   } catch (error) {
+    console.error('❌ Error deleting asset:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
@@ -327,6 +378,7 @@ export const reorderAssets = async (
   newIndex: number
 ): Promise<ApiResponse<void>> => {
   try {
+    
     // Get the current asset to check if it's moving to a different section
     const currentAssetResult = await getAsset(userId, assetId);
     if (!currentAssetResult.success || !currentAssetResult.data) {
@@ -335,6 +387,7 @@ export const reorderAssets = async (
 
     const currentAsset = currentAssetResult.data;
     const isMovingToDifferentSection = currentAsset.sectionId !== newSectionId;
+    
     
 
     // Get all assets in both sections before the transaction
@@ -419,12 +472,13 @@ export const reorderAssets = async (
             const oldPosition = asset.position;
             const newPosition = index;
             
+            
             if (oldPosition !== newPosition) {
-              
               transaction.update(doc.ref, {
                 position: newPosition,
                 updatedAt: serverTimestamp()
               });
+            } else {
             }
           }
         });
@@ -478,7 +532,7 @@ export const getUserDebts = async (userId: string): Promise<ApiResponse<Debt[]>>
 
 export const getDebt = async (userId: string, debtId: string): Promise<ApiResponse<Debt>> => {
   try {
-    const debtDoc = await getDocument(`users/${userId}/debts`, debtId);
+    const debtDoc = await getDocument(`users/${userId}/debts`, debtId, userId);
     if (!debtDoc) {
       return { success: false, error: 'Debt not found' };
     }
@@ -490,7 +544,7 @@ export const getDebt = async (userId: string, debtId: string): Promise<ApiRespon
 
 export const updateDebt = async (userId: string, debtId: string, updates: Partial<Debt>): Promise<ApiResponse<Debt>> => {
   try {
-    await updateDocument(`users/${userId}/debts`, debtId, updates);
+    await updateDocument('debts', debtId, updates, userId);
     const updatedDebt = await getDebt(userId, debtId);
     return updatedDebt;
   } catch (error) {
@@ -500,8 +554,12 @@ export const updateDebt = async (userId: string, debtId: string, updates: Partia
 
 export const deleteDebt = async (userId: string, debtId: string): Promise<ApiResponse<void>> => {
   try {
-    await deleteDocument(`users/${userId}/debts`, debtId);
-    return { success: true };
+    const wasDeleted = await deleteDocument('debts', debtId, userId);
+    if (wasDeleted) {
+      return { success: true };
+    } else {
+      return { success: false, error: 'Debt not found or already deleted' };
+    }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
@@ -548,7 +606,7 @@ export const getUserAccounts = async (userId: string): Promise<ApiResponse<Accou
 
 export const getAccount = async (userId: string, accountId: string): Promise<ApiResponse<Account>> => {
   try {
-    const accountDoc = await getDocument(`users/${userId}/accounts`, accountId);
+    const accountDoc = await getDocument(`users/${userId}/accounts`, accountId, userId);
     if (!accountDoc) {
       return { success: false, error: 'Account not found' };
     }
@@ -560,7 +618,7 @@ export const getAccount = async (userId: string, accountId: string): Promise<Api
 
 export const updateAccount = async (userId: string, accountId: string, updates: Partial<Account>): Promise<ApiResponse<Account>> => {
   try {
-    await updateDocument(`users/${userId}/accounts`, accountId, updates);
+    await updateDocument('accounts', accountId, updates, userId);
     const updatedAccount = await getAccount(userId, accountId);
     return updatedAccount;
   } catch (error) {
@@ -570,8 +628,12 @@ export const updateAccount = async (userId: string, accountId: string, updates: 
 
 export const deleteAccount = async (userId: string, accountId: string): Promise<ApiResponse<void>> => {
   try {
-    await deleteDocument(`users/${userId}/accounts`, accountId);
-    return { success: true };
+    const wasDeleted = await deleteDocument('accounts', accountId, userId);
+    if (wasDeleted) {
+      return { success: true };
+    } else {
+      return { success: false, error: 'Account not found or already deleted' };
+    }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
@@ -617,7 +679,7 @@ export const getUserGoals = async (userId: string): Promise<ApiResponse<Goal[]>>
 
 export const getGoal = async (userId: string, goalId: string): Promise<ApiResponse<Goal>> => {
   try {
-    const goalDoc = await getDocument(`users/${userId}/goals`, goalId);
+    const goalDoc = await getDocument(`users/${userId}/goals`, goalId, userId);
     if (!goalDoc) {
       return { success: false, error: 'Goal not found' };
     }
@@ -629,7 +691,7 @@ export const getGoal = async (userId: string, goalId: string): Promise<ApiRespon
 
 export const updateGoal = async (userId: string, goalId: string, updates: Partial<Goal>): Promise<ApiResponse<Goal>> => {
   try {
-    await updateDocument(`users/${userId}/goals`, goalId, updates);
+    await updateDocument('goals', goalId, updates, userId);
     const updatedGoal = await getGoal(userId, goalId);
     return updatedGoal;
   } catch (error) {
@@ -639,8 +701,12 @@ export const updateGoal = async (userId: string, goalId: string, updates: Partia
 
 export const deleteGoal = async (userId: string, goalId: string): Promise<ApiResponse<void>> => {
   try {
-    await deleteDocument(`users/${userId}/goals`, goalId);
-    return { success: true };
+    const wasDeleted = await deleteDocument('goals', goalId, userId);
+    if (wasDeleted) {
+      return { success: true };
+    } else {
+      return { success: false, error: 'Goal not found or already deleted' };
+    }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }

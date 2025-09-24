@@ -1,4 +1,5 @@
 import { Account, Asset } from '../firebase/types';
+import { Timestamp } from 'firebase/firestore';
 
 // Plaid API response types
 interface PlaidAccount {
@@ -132,15 +133,16 @@ export class PlaidService {
         available: plaidAccount.balances.available,
         current: plaidAccount.balances.current,
         currencyCode: plaidAccount.balances.iso_currency_code,
-        lastUpdated: new Date(),
+        lastUpdated: Timestamp.now(),
       },
       connectionStatus: 'connected',
       provider: 'plaid',
-      lastSyncAt: new Date(),
+      lastSyncAt: Timestamp.now(),
       syncErrors: [],
       holdingAssetIds: [],
       sectionId,
       position: 0,
+      displayPreference: 'consolidated', // Default to showing consolidated account view
       performance: {
         totalReturnPercent: 0,
       },
@@ -149,7 +151,7 @@ export class PlaidService {
       integrationInfo: {
         plaidAccountId: plaidAccount.account_id,
         provider: 'plaid',
-        lastSync: new Date(),
+        lastSync: Timestamp.now(),
       },
       transactions: [],
       valueByDate: [],
@@ -197,7 +199,7 @@ export class PlaidService {
       cashFlow: [],
       metadata: {
         description: `${security.type} - ${security.name}`,
-        tags: [security.sector, security.industry].filter(Boolean),
+        tags: [security.sector, security.industry].filter(Boolean) as string[],
         customFields: {
           cusip: security.cusip,
           isin: security.isin,

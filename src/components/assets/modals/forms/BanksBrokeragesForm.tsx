@@ -20,10 +20,10 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
     name: initialData?.name || '',
     currentValue: initialData?.currentValue || 0,
     currency: initialData?.currency || 'USD',
-    institution: initialData?.institution || '',
-    accountType: initialData?.accountType || '',
-    accountNumber: initialData?.accountNumber || '',
-    description: initialData?.description || '',
+    institution: initialData?.metadata?.customFields?.institution || '',
+    accountType: initialData?.metadata?.customFields?.accountType || '',
+    accountNumber: initialData?.metadata?.customFields?.accountNumber || '',
+    description: initialData?.metadata?.description || '',
     costBasis: initialData?.costBasis || 0,
   });
 
@@ -57,10 +57,12 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
     try {
       const result = await AccountService.syncPlaidAccount(accessToken, sectionId, userId);
       
-      // Submit each account as a separate asset
-      for (const accountAsset of result.accountAssets) {
-        await onSubmit(accountAsset);
-      }
+      // The AccountService.syncPlaidAccount already creates the accounts and assets
+      // No need to call onSubmit again as it would create duplicates
+      console.log('✅ Plaid sync completed:', {
+        accounts: result.accounts.length,
+        assets: result.assets.length
+      });
       
       setSyncSuccess(true);
       setSyncError('');
@@ -116,12 +118,13 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
       quantity: 1, // Bank accounts typically have quantity of 1
       sectionId: '', // Will be set by the modal
       metadata: {
-        institution: formData.institution.trim() || undefined,
-        accountType: formData.accountType.trim() || undefined,
-        accountNumber: formData.accountNumber.trim() || undefined,
         description: formData.description.trim() || undefined,
         tags: [],
-        customFields: {}
+        customFields: {
+          institution: formData.institution.trim() || undefined,
+          accountType: formData.accountType.trim() || undefined,
+          accountNumber: formData.accountNumber.trim() || undefined,
+        }
       }
     };
 
@@ -307,10 +310,12 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
           </label>
           <CurrencyInput
             value={formData.currentValue}
-            currency={formData.currency}
-            onChange={(value) => handleInputChange('currentValue', value)}
-            onCurrencyChange={(currency) => handleInputChange('currency', currency)}
-            error={errors.currentValue}
+            onChange={(value, currency) => {
+              handleInputChange('currentValue', value);
+              handleInputChange('currency', currency);
+            }}
+            label="Current Value"
+            required
           />
         </div>
 
@@ -321,9 +326,11 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
           </label>
           <CurrencyInput
             value={formData.costBasis}
-            currency={formData.currency}
-            onChange={(value) => handleInputChange('costBasis', value)}
-            onCurrencyChange={(currency) => handleInputChange('currency', currency)}
+            onChange={(value, currency) => {
+              handleInputChange('costBasis', value);
+              handleInputChange('currency', currency);
+            }}
+            label="Cost Basis"
           />
         </div>
 

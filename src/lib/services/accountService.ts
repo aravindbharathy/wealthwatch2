@@ -10,7 +10,7 @@ export class AccountService {
     accessToken: string, 
     sectionId: string, 
     userId: string
-  ): Promise<{ accounts: Account[], assets: Asset[], accountAssets: Asset[] }> {
+  ): Promise<{ accounts: Account[], assets: Asset[] }> {
     try {
       // 1. Fetch holdings from Plaid
       const plaidData = await PlaidService.getHoldings(accessToken);
@@ -31,7 +31,7 @@ export class AccountService {
         );
         
         const savedAccount = await addDocument('accounts', accountData, userId);
-        accounts.push({ ...accountData, id: savedAccount.id });
+        accounts.push({ ...accountData, id: savedAccount.id } as Account);
       }
       
       // 3. Transform and save holdings as assets
@@ -49,7 +49,7 @@ export class AccountService {
             );
             
             const savedAsset = await addDocument('assets', assetData, userId);
-            const savedAssetWithId = { ...assetData, id: savedAsset.id };
+            const savedAssetWithId = { ...assetData, id: savedAsset.id } as Asset;
             assets.push(savedAssetWithId);
             
             // Update account's holding references
@@ -63,40 +63,7 @@ export class AccountService {
         }
       }
       
-      // 4. Create individual account assets (one per account)
-      const accountAssets: Asset[] = [];
-      for (const account of accounts) {
-        const accountAssetData: CreateAssetInput = {
-          name: account.name,
-          type: 'account',
-          currentValue: account.balances.current,
-          currency: account.currency,
-          quantity: 1, // Each account is a single unit
-          costBasis: account.balances.current, // For accounts, cost basis = current value
-          sectionId,
-          metadata: {
-            description: `${account.officialName || account.name} - ${account.institution}`,
-            tags: ['plaid', 'connected', 'auto-synced', account.type, account.subtype || ''],
-            customFields: {
-              accountId: account.id,
-              providerAccountId: account.providerAccountId,
-              institutionName: account.institution,
-              accountType: account.type,
-              accountSubtype: account.subtype,
-              mask: account.mask,
-              provider: 'plaid',
-              lastSyncAt: new Date().toISOString(),
-              holdingCount: account.holdingAssetIds.length,
-              availableBalance: account.balances.available,
-            },
-          },
-        };
-        
-        const savedAccountAsset = await addDocument('assets', accountAssetData, userId);
-        accountAssets.push({ ...accountAssetData, id: savedAccountAsset.id });
-      }
-      
-      return { accounts, assets, accountAssets };
+      return { accounts, assets };
     } catch (error) {
       console.error('Account sync error:', error);
       throw new Error(`Failed to sync Plaid account: ${error instanceof Error ? error.message : 'Unknown error'}`);

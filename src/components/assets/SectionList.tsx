@@ -32,6 +32,7 @@ interface SectionListProps {
   onDeleteAsset: (assetId: string) => void;
   onMoveAsset?: (assetId: string) => void;
   onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
+  onViewHoldings?: (assetId: string) => void;
   onAddSection: () => void;
   loading?: boolean;
   isAuthenticated?: boolean;
@@ -48,6 +49,7 @@ export default function SectionList({
   onDeleteAsset,
   onMoveAsset,
   onReorderAssets,
+  onViewHoldings,
   onAddSection,
   loading = false,
   isAuthenticated = true,
@@ -133,19 +135,22 @@ export default function SectionList({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
+    
     if (over && active.id !== over.id && onReorderAssets) {
       // Find which section the active asset belongs to
       let sourceSectionId = '';
       let sourceIndex = -1;
       
-      for (const [sectionId, assets] of Object.entries(optimisticAssetsBySection)) {
-        const index = assets.findIndex(asset => asset.id === active.id);
-        if (index !== -1) {
+      // Use the actual database positions instead of array indices for source calculation
+      for (const [sectionId, assets] of Object.entries(assetsBySection)) {
+        const asset = assets.find(asset => asset.id === active.id);
+        if (asset) {
           sourceSectionId = sectionId;
-          sourceIndex = index;
+          sourceIndex = asset.position; // Use the actual database position, not array index
           break;
         }
       }
+
 
       if (sourceSectionId && sourceIndex !== -1) {
         // Determine target section and index
@@ -158,21 +163,36 @@ export default function SectionList({
           targetSectionId = over.id as string;
           targetIndex = 0;
         } else if (over.data?.current?.type === 'inter-asset') {
-          // Dropping on inter-asset zone - use the exact target index
+          // Dropping on inter-asset zone - convert array index to database position
           targetSectionId = over.data.current.sectionId;
-          targetIndex = over.data.current.targetIndex;
+          const targetSectionAssets = assetsBySection[targetSectionId] || [];
+          const arrayIndex = over.data.current.targetIndex;
+          
+          if (arrayIndex === 0) {
+            // Inserting at the beginning - use position 0
+            targetIndex = 0;
+          } else if (arrayIndex >= targetSectionAssets.length) {
+            // Inserting at the end - use the last asset's position + 1
+            const lastAsset = targetSectionAssets[targetSectionAssets.length - 1];
+            targetIndex = lastAsset ? lastAsset.position + 1 : 0;
+          } else {
+            // Inserting between assets - use the position of the asset at this index
+            const targetAsset = targetSectionAssets[arrayIndex];
+            targetIndex = targetAsset ? targetAsset.position : arrayIndex;
+          }
+          
         } else {
-          // Fallback: try to find the asset by ID
-          for (const [sectionId, assets] of Object.entries(optimisticAssetsBySection)) {
-            const index = assets.findIndex(asset => asset.id === over.id);
-            if (index !== -1) {
+          // Fallback: try to find the asset by ID using actual database state
+          for (const [sectionId, assets] of Object.entries(assetsBySection)) {
+            const asset = assets.find(asset => asset.id === over.id);
+            if (asset) {
               targetSectionId = sectionId;
-              // Always insert before the target asset
-              targetIndex = index;
+              targetIndex = asset.position;
               break;
             }
           }
         }
+
 
 
         if (sourceSectionId !== targetSectionId || sourceIndex !== targetIndex) {
@@ -220,6 +240,7 @@ export default function SectionList({
 
           // Call the backend function
           onReorderAssets(active.id as string, targetSectionId, targetIndex);
+        } else {
         }
       }
     }
@@ -307,6 +328,7 @@ export default function SectionList({
               onDeleteAsset={onDeleteAsset}
               onMoveAsset={onMoveAsset}
               onReorderAssets={onReorderAssets}
+              onViewHoldings={onViewHoldings}
               loading={loading}
               isAuthenticated={isAuthenticated}
               activeAssetId={activeId}

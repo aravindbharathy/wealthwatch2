@@ -16,6 +16,7 @@ interface AssetTableProps {
   onDeleteAsset: (assetId: string) => void;
   onMoveAsset?: (assetId: string) => void;
   onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
+  onViewHoldings?: (assetId: string) => void;
   loading?: boolean;
   isAuthenticated?: boolean;
   sectionId?: string;
@@ -28,6 +29,7 @@ export default function AssetTable({
   onDeleteAsset,
   onMoveAsset,
   onReorderAssets,
+  onViewHoldings,
   loading = false,
   isAuthenticated = true,
   sectionId,
@@ -160,10 +162,12 @@ export default function AssetTable({
         </div>
 
         {/* Asset Rows with Inter-Asset Drop Zones */}
-        {assets.map((asset, index) => {
-          const isActiveAsset = asset.id === activeAssetId;
-          const prevAsset = index > 0 ? assets[index - 1] : null;
-          const isPrevAssetActive = prevAsset?.id === activeAssetId;
+        {(() => {
+          const validAssets = assets.filter(asset => asset && asset.id);
+          return validAssets.map((asset, index) => {
+            const isActiveAsset = asset.id === activeAssetId;
+            const prevAsset = index > 0 ? validAssets[index - 1] : null;
+            const isPrevAssetActive = prevAsset?.id === activeAssetId;
           
           return (
             <React.Fragment key={asset.id}>
@@ -187,12 +191,16 @@ export default function AssetTable({
               />
             </React.Fragment>
           );
-        })}
+        });
+        })()}
         
         {/* Drop zone after the last asset - only if section has assets and last asset is not being dragged */}
-        {assets.length > 0 && assets[assets.length - 1]?.id !== activeAssetId && (
-          <InterAssetDropZone sectionId={sectionId} targetIndex={assets.length} />
-        )}
+        {(() => {
+          const validAssets = assets.filter(asset => asset && asset.id);
+          return validAssets.length > 0 && validAssets[validAssets.length - 1]?.id !== activeAssetId && (
+            <InterAssetDropZone sectionId={sectionId} targetIndex={validAssets.length} />
+          );
+        })()}
         
         {/* Popup Menu */}
         <PopupMenu
@@ -201,6 +209,9 @@ export default function AssetTable({
           onEdit={() => popupState.assetId && onEditAsset(popupState.assetId)}
           onDelete={() => popupState.assetId && onDeleteAsset(popupState.assetId)}
           onMove={() => popupState.assetId && onMoveAsset?.(popupState.assetId)}
+          onViewHoldings={() => popupState.assetId && onViewHoldings?.(popupState.assetId)}
+          isAccountAsset={popupState.assetId ? assets.find(a => a.id === popupState.assetId)?.type === 'account' : false}
+          isAccountHolding={popupState.assetId ? assets.find(a => a.id === popupState.assetId)?.accountMapping?.isLinked === true : false}
           position={popupState.position}
         />
     </div>
@@ -387,10 +398,13 @@ interface PopupMenuProps {
   onEdit: () => void;
   onDelete: () => void;
   onMove?: () => void;
+  onViewHoldings?: () => void;
+  isAccountAsset?: boolean;
+  isAccountHolding?: boolean;
   position: { top: number; left: number };
 }
 
-const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete, onMove, position }) => {
+const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete, onMove, onViewHoldings, isAccountAsset, isAccountHolding, position }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -435,6 +449,23 @@ const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete
         </svg>
         <span>Edit</span>
       </button>
+      {isAccountAsset && onViewHoldings && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onViewHoldings();
+            onClose();
+          }}
+          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
+          type="button"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span>View All Holdings</span>
+        </button>
+      )}
       {onMove && (
         <button
           onClick={(e) => {
@@ -456,16 +487,27 @@ const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          onDelete();
-          onClose();
+          if (!isAccountHolding) {
+            onDelete();
+            onClose();
+          }
         }}
-        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
+        disabled={isAccountHolding}
+        className={`w-full px-4 py-2 text-left text-sm flex items-center space-x-2 transition-colors ${
+          isAccountHolding 
+            ? 'text-gray-400 cursor-not-allowed' 
+            : 'text-red-600 hover:bg-red-50'
+        }`}
         type="button"
+        title={isAccountHolding ? 'Cannot delete holdings that are part of an account. Use the account management to remove holdings.' : 'Delete asset'}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
         <span>Delete</span>
+        {isAccountHolding && (
+          <span className="text-xs text-gray-400 ml-auto">(Disabled)</span>
+        )}
       </button>
     </div>
   );

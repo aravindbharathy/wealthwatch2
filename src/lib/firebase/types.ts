@@ -269,6 +269,9 @@ export interface Account extends BaseDocument {
   sectionId: string; // Which section this account appears in
   position: number; // Position within section
   
+  // Display preference
+  displayPreference: 'consolidated' | 'holdings'; // How to display this account in the UI
+  
   // Performance (calculated from holdings)
   performance: AccountPerformance;
   

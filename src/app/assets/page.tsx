@@ -5,13 +5,17 @@ import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { clearDuplicatesFromConsole } from '@/lib/firebase/clearDuplicates';
 import { useAssetSheets } from '@/lib/hooks/useAssetSheets';
 import { useDemoAssetSheets, useDemoAssetSummary, useDemoSectionAssets } from '@/lib/hooks/useDemoAssets';
+import { useAccountDisplayPreferences } from '@/lib/hooks/useAccountDisplayPreferences';
+import DebugPanel from '@/components/DebugPanel';
 import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import { AssetSheet, AssetSection, Asset, CreateAssetInput, CreateAssetSheetInput, CreateAssetSectionInput } from '@/lib/firebase/types';
-import { createAsset, deleteAsset, reorderAssets } from '@/lib/firebase/firebaseUtils';
+import { createAsset, deleteAsset, reorderAssets, updateAsset } from '@/lib/firebase/firebaseUtils';
 import { initializePortfolioWithSampleData } from '@/lib/firebase/portfolioUtils';
 import { 
   collection, 
   getDocs, 
+  getDoc,
+  doc,
   query, 
   where,
   onSnapshot 
@@ -75,6 +79,63 @@ export default function AssetsPage() {
     deleteSection,
   } = useAssetSheets(effectiveUserId);
 
+  // Account display preferences
+  const {
+    preferences: accountPreferences, 
+    loading: preferencesLoading,
+    updatePreference: updateAccountPreference,
+    filterAssetsByPreference,
+    getAccountSummaries,
+    getAccountHoldings
+  } = useAccountDisplayPreferences(effectiveUserId);
+
+  // Load accounts for filtering
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!effectiveUserId) {
+      setAccounts([]);
+      return;
+    }
+
+    const loadAccounts = async () => {
+      try {
+        setAccountsLoading(true);
+        
+        
+        const accountsRef = collection(db, `users/${effectiveUserId}/accounts`);
+        const accountsSnapshot = await getDocs(accountsRef);
+        const accountsData = accountsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        
+        setAccounts(accountsData);
+      } catch (error) {
+        console.error('Error loading accounts:', error);
+      } finally {
+        setAccountsLoading(false);
+      }
+    };
+
+    loadAccounts();
+
+    // Set up real-time listener for accounts to reload when new accounts are added
+    const accountsRef = collection(db, `users/${effectiveUserId}/accounts`);
+    const unsubscribe = onSnapshot(accountsRef, (snapshot) => {
+      const accountsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setAccounts(accountsData);
+      setAccountsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [effectiveUserId]);
+
 
 
   // Use demo mode if:
@@ -129,27 +190,31 @@ export default function AssetsPage() {
       const unsubscribeFunctions: (() => void)[] = [];
       const newActiveListeners = new Set<string>();
 
-      sections.forEach((section) => {
-        // Only set up listener if we don't already have one for this section
-        if (!activeListeners.has(section.id)) {
-          const assetsRef = collection(db, `users/${userId}/assets`);
-          const q = query(
-            assetsRef,
-            where('sectionId', '==', section.id)
-          );
+      // Single listener for all assets - more efficient than multiple listeners
+      const assetsRef = collection(db, `users/${userId}/assets`);
+      const sectionIds = sections.map(s => s.id);
+      const q = query(
+        assetsRef,
+        where('sectionId', 'in', sectionIds)
+      );
 
-          const unsubscribe = onSnapshot(q, 
-            (snapshot) => {
-              try {
-                const assets = snapshot.docs.map(doc => ({
-                  id: doc.id,
-                  ...doc.data(),
-                  createdAt: doc.data().createdAt,
-                  updatedAt: doc.data().updatedAt,
-                })) as Asset[];
+      const unsubscribe = onSnapshot(q, 
+        (snapshot) => {
+          try {
+            const allAssets = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              createdAt: doc.data().createdAt,
+              updatedAt: doc.data().updatedAt,
+            })) as Asset[];
 
-                // Sort assets by position, then by createdAt for assets without position
-                const sortedAssets = assets.sort((a, b) => {
+            // Group assets by section
+            const assetsBySectionMap: { [sectionId: string]: Asset[] } = {};
+            
+            sections.forEach(section => {
+              const sectionAssets = allAssets
+                .filter(asset => asset.sectionId === section.id)
+                .sort((a, b) => {
                   // If both assets have position values, sort by position
                   if (a.position !== undefined && b.position !== undefined) {
                     return a.position - b.position;
@@ -168,30 +233,28 @@ export default function AssetsPage() {
                   const bTime = b.createdAt?.toMillis() || 0;
                   return aTime - bTime;
                 });
+              
+              
+              assetsBySectionMap[section.id] = sectionAssets;
+            });
 
-                // Update state with all sections' assets
-                setAssetsBySection(prev => {
-                  const updated = { ...prev, [section.id]: sortedAssets };
-                  return updated;
-                });
-                setLoading(false);
-              } catch (err) {
-                console.error(`Error processing assets for section ${section.id}:`, err);
-                setError(err instanceof Error ? err.message : 'Error processing assets');
-                setLoading(false);
-              }
-            },
-            (err) => {
-              console.error(`Firebase error for section ${section.id}:`, err);
-              setError(err.message);
-              setLoading(false);
-            }
-          );
-
-          unsubscribeFunctions.push(unsubscribe);
-          newActiveListeners.add(section.id);
+            setAssetsBySection(assetsBySectionMap);
+            setLoading(false);
+          } catch (err) {
+            console.error('Error processing assets:', err);
+            setError(err instanceof Error ? err.message : 'Error processing assets');
+            setLoading(false);
+          }
+        },
+        (err) => {
+          console.error('Firebase error:', err);
+          setError(err.message);
+          setLoading(false);
         }
-      });
+      );
+
+      unsubscribeFunctions.push(unsubscribe);
+      sections.forEach(section => newActiveListeners.add(section.id));
 
       // Update active listeners
       setActiveListeners(newActiveListeners);
@@ -235,17 +298,47 @@ export default function AssetsPage() {
   // Get assets by section for all sheets (for SheetTabs and TotalAssetsSummary)
   const { assetsBySection: allAssetsBySection, loading: assetsLoading, error: assetsError } = useAssetsForSections(allSections, effectiveUserId);
 
-  // Filter assets for current sheet only (for SectionList)
+  // Filter assets for current sheet only (for SectionList) and apply account preferences
   const assetsBySection = useMemo(() => {
+    // Early return if loading
+    if (preferencesLoading || accountsLoading) {
+      return {};
+    }
+    
     const currentSectionIds = new Set(sections.map(s => s.id));
     const filtered: { [sectionId: string]: Asset[] } = {};
-    Object.keys(allAssetsBySection).forEach(sectionId => {
+    
+    // Get account summaries once (only for consolidated view)
+    // Only generate summaries when accounts and preferences are loaded and not loading
+    const accountSummaries = accounts.length > 0 ? getAccountSummaries(accounts) : [];
+    
+    
+    Object.keys(allAssetsBySection).forEach((sectionId, index) => {
       if (currentSectionIds.has(sectionId)) {
-        filtered[sectionId] = allAssetsBySection[sectionId];
+        const sectionAssets = allAssetsBySection[sectionId];
+        
+        // Filter out any undefined or invalid assets first
+        const validSectionAssets = sectionAssets.filter(asset => asset && asset.id);
+        
+        // Apply account display preferences filtering
+        const filteredAssets = filterAssetsByPreference(validSectionAssets, accounts);
+        
+        
+        // Only add account summaries to the first section (default section)
+        if (index === 0 && accountSummaries.length > 0) {
+          const summariesForSection = accountSummaries.map((summary: Asset) => ({
+            ...summary,
+            sectionId: sectionId
+          }));
+          filtered[sectionId] = [...filteredAssets, ...summariesForSection];
+        } else {
+          filtered[sectionId] = filteredAssets;
+        }
       }
     });
+    
     return filtered;
-  }, [allAssetsBySection, sections]);
+  }, [allAssetsBySection, sections, filterAssetsByPreference, accounts, getAccountSummaries, accountsLoading, preferencesLoading, accountPreferences]);
 
   // Get assets for the current sheet only
   const currentSheetAssets = useMemo(() => {
@@ -430,17 +523,29 @@ export default function AssetsPage() {
   const handleDeleteAsset = async (assetId: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
       try {
+        // Check if this is an account summary (generated asset)
+        if (assetId.startsWith('account-summary-')) {
+          alert('Cannot delete account summary. Please delete the individual holdings instead.');
+          return;
+        }
+        
+        // Check if this is an account-linked holding
+        const allAssets = Object.values(allAssetsBySection).flat();
+        const asset = allAssets.find(a => a.id === assetId);
+        
+        if (asset?.accountMapping?.isLinked) {
+          alert('Cannot delete holdings that are part of an account. Use the account management to remove holdings.');
+          return;
+        }
+        
         const result = await deleteAsset(effectiveUserId, assetId);
-        if (result.success) {
-          // The useAssetsForSections hook will automatically refresh and remove the asset
-          // Update portfolio value tracking
-        } else {
-          console.error('Failed to delete asset:', result.error);
-          alert('Failed to delete asset. Please try again.');
+        
+        if (!result.success) {
+          alert(`Failed to delete asset: ${result.error}`);
         }
       } catch (error) {
         console.error('Error deleting asset:', error);
-        alert('An error occurred while deleting the asset. Please try again.');
+        alert(`An error occurred while deleting the asset: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
   };
@@ -477,6 +582,70 @@ export default function AssetsPage() {
     setNotificationMessage(message);
     // Clear notification after 3 seconds
     setTimeout(() => setNotificationMessage(''), 3000);
+  };
+
+  const handleViewHoldings = async (assetId: string) => {
+    try {
+      // Find the account associated with this asset
+      const asset = Object.values(assetsBySection).flat().find(a => a.id === assetId);
+      
+      if (!asset || asset.type !== 'account') {
+        console.error('Asset not found or not an account type');
+        return;
+      }
+
+      // Get the account ID from the asset's metadata
+      const accountId = asset.metadata?.customFields?.accountId;
+      
+      if (!accountId) {
+        console.error('Account ID not found in asset metadata');
+        return;
+      }
+
+      // Find the account
+      const account = accounts.find(acc => acc.id === accountId);
+      
+      if (!account) {
+        console.error('Account not found');
+        return;
+      }
+
+      // Create a new section for this account's holdings first
+      const sectionName = `${account.name} Holdings`;
+      const newSectionId = await createSection({
+        name: sectionName,
+        sheetId: activeSheetId,
+        order: sections.length
+      });
+
+      // Find all holdings linked to this account
+      const allAssets: Asset[] = Object.values(allAssetsBySection).flat();
+      const accountHoldings: Asset[] = allAssets.filter(asset => 
+        asset.accountMapping?.isLinked && 
+        asset.accountMapping.accountId === accountId
+      );
+
+      // Move each holding to the new section
+      
+      for (const holding of accountHoldings) {
+        try {
+          await updateAsset(effectiveUserId, holding.id, { sectionId: newSectionId });
+        } catch (error) {
+          console.error(`❌ Error moving holding ${holding.id} to new section:`, error);
+        }
+      }
+
+      // Update the account's display preference to 'holdings' after moving assets
+      await updateAccountPreference(accountId, 'holdings');
+      
+      setNotificationMessage(`Created section "${sectionName}" with ${accountHoldings.length} holdings`);
+      setTimeout(() => setNotificationMessage(''), 3000);
+      
+    } catch (error) {
+      console.error('Error viewing holdings:', error);
+      setNotificationMessage('Error displaying holdings.');
+      setTimeout(() => setNotificationMessage(''), 3000);
+    }
   };
 
   const handleInitializePortfolio = async () => {
@@ -655,6 +824,7 @@ export default function AssetsPage() {
           onDeleteAsset={handleDeleteAsset}
           onMoveAsset={handleMoveAsset}
           onReorderAssets={handleReorderAssets}
+          onViewHoldings={handleViewHoldings}
           onAddSection={handleAddSection}
           loading={currentSheetsLoading && currentSheets.length === 0}
           isAuthenticated={Boolean(user || isDemoUser)}
@@ -709,6 +879,9 @@ export default function AssetsPage() {
           {notificationMessage}
         </div>
       )}
+      
+      {/* Debug Panel - only shown in development or for demo users */}
+      <DebugPanel userId={effectiveUserId} />
     </div>
   );
 }

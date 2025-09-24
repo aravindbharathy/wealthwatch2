@@ -104,7 +104,46 @@ export function clearDuplicatesFromConsole() {
     });
 }
 
+// Function to clear duplicate Plaid account assets
+export async function clearDuplicatePlaidAccountAssets(userId: string = DEMO_USER_ID) {
+  try {
+    const assetsRef = collection(db, `users/${userId}/assets`);
+    const assetsQuery = query(assetsRef);
+    const assetsSnapshot = await getDocs(assetsQuery);
+    
+    const duplicateAssets: string[] = [];
+    
+    assetsSnapshot.forEach((doc) => {
+      const data = doc.data();
+      
+      // Check if this is a duplicate Plaid account asset
+      // These have type: 'account' and specific metadata indicating they're Plaid account summaries
+      if (data.type === 'account' && 
+          data.metadata?.customFields?.provider === 'plaid' &&
+          data.metadata?.customFields?.accountId) {
+        duplicateAssets.push(doc.id);
+      }
+    });
+    
+    // Delete duplicate account assets
+    for (const docId of duplicateAssets) {
+      await deleteDoc(doc(db, `users/${userId}/assets`, docId));
+    }
+    
+    console.log(`✅ Cleared ${duplicateAssets.length} duplicate Plaid account assets`);
+    
+    return {
+      deletedAccountAssets: duplicateAssets.length
+    };
+    
+  } catch (error) {
+    console.error('❌ Error clearing duplicate Plaid account assets:', error);
+    throw error;
+  }
+}
+
 // Make it available globally for console access
 if (typeof window !== 'undefined') {
   (window as any).clearDuplicatesFromConsole = clearDuplicatesFromConsole;
+  (window as any).clearDuplicatePlaidAccountAssets = clearDuplicatePlaidAccountAssets;
 }

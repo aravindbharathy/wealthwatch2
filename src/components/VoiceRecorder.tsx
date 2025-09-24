@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useDeepgram } from '../lib/contexts/DeepgramContext';
+import { useAuthNew } from '../lib/contexts/AuthContext';
 import { addDocument } from '../lib/firebase/firebaseUtils';
 import { motion } from 'framer-motion';
 
 export default function VoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false);
+  const { user } = useAuthNew();
   const { connectToDeepgram, disconnectFromDeepgram, connectionState, realtimeTranscript } = useDeepgram();
 
   const handleStartRecording = async () => {
@@ -23,7 +25,7 @@ export default function VoiceRecorder() {
       await addDocument('notes', {
         text: realtimeTranscript,
         timestamp: new Date().toISOString(),
-      });
+      }, user?.uid || '');
     }
   };
 

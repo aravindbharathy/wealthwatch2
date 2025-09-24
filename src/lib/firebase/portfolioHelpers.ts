@@ -110,7 +110,7 @@ export const calculateAssetAllocation = (
   // Calculate by account
   const byAccount: Record<string, number> = {};
   accounts.forEach(account => {
-    const accountValue = account.holdings?.reduce((sum, holding) => sum + holding.currentValue, 0) || 0;
+    const accountValue = account.balances?.current || 0;
     if (accountValue > 0) {
       byAccount[account.id] = (accountValue / totalValue) * 100;
     }

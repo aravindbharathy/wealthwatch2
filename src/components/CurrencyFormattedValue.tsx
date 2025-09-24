@@ -50,7 +50,7 @@ export default function CurrencyFormattedValue({
     };
 
     formatValue();
-  }, [amount, fromCurrency, formatCurrency, fallback]);
+  }, [amount, fromCurrency, fallback]); // Removed formatCurrency from dependencies
 
   if (isLoading) {
     return (
