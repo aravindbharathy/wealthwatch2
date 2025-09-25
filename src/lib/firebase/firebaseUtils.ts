@@ -43,6 +43,32 @@ import {
   ApiResponse,
   PaginatedResponse,
 } from "./types";
+import { recalculateSectionSummary } from './portfolioHelpers';
+
+// Utility function to recalculate all section summaries for a user
+export const recalculateAllSectionSummaries = async (userId: string): Promise<ApiResponse<void>> => {
+  try {
+    // Get all sections for the user
+    const sectionsRef = collection(db, `users/${userId}/sections`);
+    const sectionsSnapshot = await getDocs(sectionsRef);
+    
+    // Recalculate summaries for all sections
+    const recalculationPromises = sectionsSnapshot.docs.map(async (doc) => {
+      try {
+        await recalculateSectionSummary(doc.id, userId);
+      } catch (error) {
+        console.error(`Error recalculating summary for section ${doc.id}:`, error);
+      }
+    });
+    
+    await Promise.all(recalculationPromises);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error recalculating all section summaries:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
 
 // Auth functions
 export const logoutUser = () => signOut(auth);
@@ -293,6 +319,17 @@ export const createAsset = async (userId: string, assetData: CreateAssetInput): 
 
     const docRef = await addDoc(collection(db, `users/${userId}/assets`), assetDoc);
     const createdAsset = await getAsset(userId, docRef.id);
+    
+    // Recalculate section summary after adding asset
+    if (assetData.sectionId) {
+      try {
+        await recalculateSectionSummary(assetData.sectionId, userId);
+      } catch (error) {
+        console.error('Error recalculating section summary after creating asset:', error);
+        // Don't fail the asset creation if summary recalculation fails
+      }
+    }
+    
     return createdAsset;
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -342,8 +379,27 @@ export const getAsset = async (userId: string, assetId: string): Promise<ApiResp
 
 export const updateAsset = async (userId: string, assetId: string, updates: Partial<Asset>): Promise<ApiResponse<Asset>> => {
   try {
+    // Get the current asset to find its sectionId
+    const currentAsset = await getAsset(userId, assetId);
+    if (!currentAsset.success || !currentAsset.data) {
+      return { success: false, error: 'Asset not found' };
+    }
+    
+    const sectionId = currentAsset.data.sectionId;
+    
     await updateDocument('assets', assetId, updates, userId);
     const updatedAsset = await getAsset(userId, assetId);
+    
+    // Recalculate section summary after updating asset
+    if (sectionId) {
+      try {
+        await recalculateSectionSummary(sectionId, userId);
+      } catch (error) {
+        console.error('Error recalculating section summary after updating asset:', error);
+        // Don't fail the asset update if summary recalculation fails
+      }
+    }
+    
     return updatedAsset;
   } catch (error) {
     console.error('❌ updateAsset error:', error);
@@ -353,6 +409,9 @@ export const updateAsset = async (userId: string, assetId: string, updates: Part
 
 export const deleteAsset = async (userId: string, assetId: string): Promise<ApiResponse<void>> => {
   try {
+    // Get the current asset to find its sectionId before deleting
+    const currentAsset = await getAsset(userId, assetId);
+    const sectionId = currentAsset.success && currentAsset.data ? currentAsset.data.sectionId : null;
     
     // Test Firebase connection first
     const testRef = doc(db, `users/${userId}/assets`, assetId);
@@ -360,6 +419,16 @@ export const deleteAsset = async (userId: string, assetId: string): Promise<ApiR
     const wasDeleted = await deleteDocument('assets', assetId, userId);
     
     if (wasDeleted) {
+      // Recalculate section summary after deleting asset
+      if (sectionId) {
+        try {
+          await recalculateSectionSummary(sectionId, userId);
+        } catch (error) {
+          console.error('Error recalculating section summary after deleting asset:', error);
+          // Don't fail the asset deletion if summary recalculation fails
+        }
+      }
+      
       return { success: true };
     } else {
       console.warn('⚠️ Asset was not deleted (document may not exist)');
@@ -484,6 +553,20 @@ export const reorderAssets = async (
         });
       }
     });
+
+    // Recalculate section summaries after reordering
+    if (isMovingToDifferentSection && currentAsset.sectionId) {
+      // Recalculate both old and new section summaries
+      try {
+        await Promise.all([
+          recalculateSectionSummary(currentAsset.sectionId, userId),
+          recalculateSectionSummary(newSectionId, userId)
+        ]);
+      } catch (error) {
+        console.error('Error recalculating section summaries after reordering asset:', error);
+        // Don't fail the reorder if summary recalculation fails
+      }
+    }
 
     return { success: true };
   } catch (error) {
