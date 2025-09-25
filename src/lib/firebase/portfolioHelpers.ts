@@ -140,25 +140,20 @@ export const calculateSectionSummary = (
   totalReturn: number;
   totalReturnPercent: number;
 } => {
-  // For Plaid data, cost basis is not available at account level, so set to 0
-  const totalInvested = isPlaidData ? 0 : assets.reduce((sum, asset) => {
-    return asset.costBasis !== undefined && asset.costBasis > 0 ? sum + asset.costBasis : sum;
-  }, 0);
-  
   const totalValue = assets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
   
   // Calculate IRR only for assets that have meaningful cost basis data
+  // This works for both Plaid and non-Plaid data - we just look at individual assets
   let totalReturnForIRR = 0;
   let totalInvestedForIRR = 0;
   
-  if (!isPlaidData) {
-    assets.forEach(asset => {
-      if (asset.costBasis !== undefined && asset.costBasis > 0) {
-        totalInvestedForIRR += asset.costBasis;
-        totalReturnForIRR += (asset.currentValue || 0) - asset.costBasis;
-      }
-    });
-  }
+  assets.forEach(asset => {
+    // Only include assets that have a defined cost basis > 0
+    if (asset.costBasis !== undefined && asset.costBasis > 0) {
+      totalInvestedForIRR += asset.costBasis;
+      totalReturnForIRR += (asset.currentValue || 0) - asset.costBasis;
+    }
+  });
   
   // Use the IRR calculation only for assets with cost basis
   const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
@@ -190,9 +185,11 @@ export const recalculateSectionSummary = async (
       ...doc.data(),
     })) as Asset[];
     
-    // Check if this is Plaid data by looking for Plaid-specific account mapping
+    // Check if this is Plaid data by looking for Plaid-specific metadata or account summaries
     const isPlaidData = assets.some(asset => 
-      asset.accountMapping?.isLinked === true
+      asset.accountMapping?.isLinked === true ||
+      asset.metadata?.customFields?.provider === 'plaid' ||
+      asset.metadata?.customFields?.isAccountSummary === true
     );
     
     // Calculate new summary (cost basis will be 0 for Plaid data)
