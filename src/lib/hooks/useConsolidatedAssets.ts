@@ -28,6 +28,9 @@ export interface ConsolidatedAsset {
   sectionName: string;
   // For grouping
   groupKey: string; // Combination of symbol + type for grouping
+  // Link information
+  isLinkedToAccount?: boolean;
+  isAccountSummary?: boolean;
 }
 
 export interface ConsolidatedDebt {
@@ -140,7 +143,10 @@ export function useConsolidatedAssets(userId: string) {
             currency: asset.currency || 'USD',
             sheetName,
             sectionName,
-            groupKey
+            groupKey,
+            // Link information
+            isLinkedToAccount: asset.accountMapping?.isLinked || false,
+            isAccountSummary: asset.metadata?.customFields?.isAccountSummary || false
           };
 
 
