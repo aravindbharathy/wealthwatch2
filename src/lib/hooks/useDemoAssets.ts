@@ -75,6 +75,7 @@ export function useDemoAssetSheets() {
       assets: [],
       isExpanded: true,
       order: input.order,
+      isFromAccount: input.isFromAccount || false,
       summary: {
         totalInvested: 0,
         totalValue: 0,

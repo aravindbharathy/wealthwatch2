@@ -17,6 +17,7 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
+import { calculateSectionSummary } from '../firebase/portfolioHelpers';
 
 export function useSectionAssets(sectionId: string, userId: string) {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -78,6 +79,25 @@ export function useSectionAssets(sectionId: string, userId: string) {
     }
   }, [sectionId, userId]);
 
+  // Helper function to update section summary
+  const updateSectionSummary = async (assets: Asset[]) => {
+    try {
+      // Check if this is Plaid data by looking for Plaid-specific account mapping
+      const isPlaidData = assets.some(asset => 
+        asset.accountMapping?.isLinked === true
+      );
+      
+      const summary = calculateSectionSummary(assets, isPlaidData);
+      const sectionRef = doc(db, `users/${userId}/sections`, sectionId);
+      await updateDoc(sectionRef, {
+        summary,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (err) {
+      console.error('Error updating section summary:', err);
+    }
+  };
+
   const createAsset = async (input: CreateAssetInput & { sectionId: string }) => {
     try {
       // Calculate the next position (last position + 1)
@@ -105,6 +125,11 @@ export function useSectionAssets(sectionId: string, userId: string) {
       };
 
       const docRef = await addDoc(collection(db, `users/${userId}/assets`), newAsset);
+      
+      // Update section summary after creating asset
+      const updatedAssets = [...assets, { ...newAsset, id: docRef.id }];
+      await updateSectionSummary(updatedAssets);
+      
       return docRef.id;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create asset');
@@ -119,6 +144,12 @@ export function useSectionAssets(sectionId: string, userId: string) {
         ...updates,
         updatedAt: Timestamp.now(),
       });
+      
+      // Update section summary after updating asset
+      const updatedAssets = assets.map(asset => 
+        asset.id === assetId ? { ...asset, ...updates } : asset
+      );
+      await updateSectionSummary(updatedAssets);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update asset');
       throw err;
@@ -128,6 +159,10 @@ export function useSectionAssets(sectionId: string, userId: string) {
   const deleteAsset = async (assetId: string) => {
     try {
       await deleteDoc(doc(db, `users/${userId}/assets`, assetId));
+      
+      // Update section summary after deleting asset
+      const updatedAssets = assets.filter(asset => asset.id !== assetId);
+      await updateSectionSummary(updatedAssets);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete asset');
       throw err;

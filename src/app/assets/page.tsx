@@ -647,33 +647,41 @@ export default function AssetsPage() {
         return;
       }
 
-      // Create a new section for this account's holdings first
+      // Update the account's display preference to 'holdings' first
+      await updateAccountPreference(accountId, 'holdings');
+
+      // Create a new section for this account's holdings
       const sectionName = `${account.name} Holdings`;
       const newSectionId = await createSection({
         name: sectionName,
         sheetId: activeSheetId,
-        order: sections.length
+        order: sections.length,
+        isFromAccount: true // Flag to indicate this section was created from an account
       });
 
-      // Find all holdings linked to this account
-      const allAssets: Asset[] = Object.values(allAssetsBySection).flat();
+      // Query assets directly from Firebase to get the most up-to-date data
+      const assetsRef = collection(db, `users/${effectiveUserId}/assets`);
+      const assetsSnapshot = await getDocs(assetsRef);
+      const allAssets: Asset[] = assetsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt,
+        updatedAt: doc.data().updatedAt,
+      })) as Asset[];
+      
       const accountHoldings: Asset[] = allAssets.filter(asset => 
         asset.accountMapping?.isLinked && 
         asset.accountMapping.accountId === accountId
       );
 
       // Move each holding to the new section
-      
       for (const holding of accountHoldings) {
         try {
           await updateAsset(effectiveUserId, holding.id, { sectionId: newSectionId });
         } catch (error) {
-          console.error(`❌ Error moving holding ${holding.id} to new section:`, error);
+          console.error(`Error moving holding ${holding.id} to new section:`, error);
         }
       }
-
-      // Update the account's display preference to 'holdings' after moving assets
-      await updateAccountPreference(accountId, 'holdings');
       
       setNotificationMessage(`Created section "${sectionName}" with ${accountHoldings.length} holdings`);
       setTimeout(() => setNotificationMessage(''), 3000);
@@ -681,6 +689,90 @@ export default function AssetsPage() {
     } catch (error) {
       console.error('Error viewing holdings:', error);
       setNotificationMessage('Error displaying holdings.');
+      setTimeout(() => setNotificationMessage(''), 3000);
+    }
+  };
+
+  const handleViewConsolidated = async (sectionId: string) => {
+    try {
+      // Find the section to get its associated account
+      const section = sections.find(s => s.id === sectionId);
+      
+      if (!section || !section.isFromAccount) {
+        console.error('Section not found or not from account');
+        return;
+      }
+
+      // Find the account associated with this section by looking for assets in this section
+      const sectionAssets = assetsBySection[sectionId] || [];
+      const accountLinkedAsset = sectionAssets.find(asset => 
+        asset.accountMapping?.isLinked && asset.accountMapping.accountId
+      );
+      
+      if (!accountLinkedAsset) {
+        console.error('No account-linked assets found in this section');
+        return;
+      }
+
+      const accountId = accountLinkedAsset.accountMapping.accountId;
+      
+      if (!accountId) {
+        console.error('Account ID not found in asset mapping');
+        return;
+      }
+      
+      // Find the account
+      const account = accounts.find(acc => acc.id === accountId);
+      
+      if (!account) {
+        console.error('Account not found');
+        return;
+      }
+
+      // Get the first section ID (where account summary will be displayed)
+      const firstSectionId = sections.length > 0 ? sections[0].id : null;
+      
+      if (!firstSectionId) {
+        console.error('No sections available to move assets to');
+        return;
+      }
+
+      // Find ALL assets linked to this account across ALL sheets and sections
+      const assetsRef = collection(db, `users/${effectiveUserId}/assets`);
+      const assetsSnapshot = await getDocs(assetsRef);
+      const allAssets: Asset[] = assetsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt,
+        updatedAt: doc.data().updatedAt,
+      })) as Asset[];
+      
+      const accountHoldings: Asset[] = allAssets.filter(asset => 
+        asset.accountMapping?.isLinked && 
+        asset.accountMapping.accountId === accountId
+      );
+      
+      // Move all account holdings to the first section (where account summary will be shown)
+      for (const holding of accountHoldings) {
+        try {
+          await updateAsset(effectiveUserId, holding.id, { sectionId: firstSectionId });
+        } catch (error) {
+          console.error(`Error moving holding ${holding.id} to first section:`, error);
+        }
+      }
+
+      // Update the account's display preference to 'consolidated'
+      await updateAccountPreference(accountId, 'consolidated');
+      
+      // Update the section's isFromAccount flag to false since it's no longer showing account holdings
+      await updateSection(sectionId, { isFromAccount: false });
+      
+      setNotificationMessage(`Account "${account.name}" is now in consolidated view. Moved ${accountHoldings.length} holdings to first section.`);
+      setTimeout(() => setNotificationMessage(''), 3000);
+      
+    } catch (error) {
+      console.error('Error switching to consolidated view:', error);
+      setNotificationMessage('Error switching to consolidated view.');
       setTimeout(() => setNotificationMessage(''), 3000);
     }
   };
@@ -862,6 +954,7 @@ export default function AssetsPage() {
           onMoveAsset={handleMoveAsset}
           onReorderAssets={handleReorderAssets}
           onViewHoldings={handleViewHoldings}
+          onViewConsolidated={handleViewConsolidated}
           onAddSection={handleAddSection}
           loading={currentSheetsLoading && currentSheets.length === 0}
           isAuthenticated={Boolean(user || isDemoUser)}

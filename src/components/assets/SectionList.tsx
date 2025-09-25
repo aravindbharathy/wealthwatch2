@@ -33,6 +33,7 @@ interface SectionListProps {
   onMoveAsset?: (assetId: string) => void;
   onReorderAssets?: (assetId: string, newSectionId: string, newIndex: number) => void;
   onViewHoldings?: (assetId: string) => void;
+  onViewConsolidated?: (sectionId: string) => void;
   onAddSection: () => void;
   loading?: boolean;
   isAuthenticated?: boolean;
@@ -50,6 +51,7 @@ export default function SectionList({
   onMoveAsset,
   onReorderAssets,
   onViewHoldings,
+  onViewConsolidated,
   onAddSection,
   loading = false,
   isAuthenticated = true,
@@ -329,6 +331,7 @@ export default function SectionList({
               onMoveAsset={onMoveAsset}
               onReorderAssets={onReorderAssets}
               onViewHoldings={onViewHoldings}
+              onViewConsolidated={onViewConsolidated}
               loading={loading}
               isAuthenticated={isAuthenticated}
               activeAssetId={activeId}

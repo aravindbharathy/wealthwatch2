@@ -1,7 +1,8 @@
 // Portfolio Analytics and Performance Calculation Helpers
 // Complex operations for wealth tracking and portfolio management
 
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db } from './firebase';
 import {
   Asset,
   Debt,
@@ -124,4 +125,70 @@ export const calculateAssetAllocation = (
   });
 
   return { byType, byAccount, byCurrency };
+};
+
+// ============================================================================
+// SECTION SUMMARY CALCULATION FUNCTIONS
+// ============================================================================
+
+export const calculateSectionSummary = (
+  assets: Asset[], 
+  isPlaidData: boolean = false
+): {
+  totalInvested: number;
+  totalValue: number;
+  totalReturn: number;
+  totalReturnPercent: number;
+} => {
+  // For Plaid data, cost basis is not available at account level, so set to 0
+  const totalInvested = isPlaidData ? 0 : assets.reduce((sum, asset) => {
+    return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+  }, 0);
+  
+  const totalValue = assets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
+  const totalReturn = totalValue - totalInvested;
+  const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+  
+  return {
+    totalInvested,
+    totalValue,
+    totalReturn,
+    totalReturnPercent,
+  };
+};
+
+// Utility function to recalculate section summary from database
+export const recalculateSectionSummary = async (
+  sectionId: string, 
+  userId: string
+): Promise<void> => {
+  try {
+    // Get all assets for this section
+    const assetsRef = collection(db, `users/${userId}/assets`);
+    const assetsQuery = query(assetsRef, where('sectionId', '==', sectionId));
+    const assetsSnapshot = await getDocs(assetsQuery);
+    
+    const assets = assetsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Asset[];
+    
+    // Check if this is Plaid data by looking for Plaid-specific account mapping
+    const isPlaidData = assets.some(asset => 
+      asset.accountMapping?.isLinked === true
+    );
+    
+    // Calculate new summary (cost basis will be 0 for Plaid data)
+    const summary = calculateSectionSummary(assets, isPlaidData);
+    
+    // Update section with new summary
+    const sectionRef = doc(db, `users/${userId}/sections`, sectionId);
+    await updateDoc(sectionRef, {
+      summary,
+      updatedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error recalculating section summary:', error);
+    throw error;
+  }
 };

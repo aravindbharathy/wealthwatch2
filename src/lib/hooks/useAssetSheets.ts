@@ -233,6 +233,7 @@ export function useAssetSheets(userId: string) {
         ...input,
         assets: [],
         isExpanded: true,
+        isFromAccount: input.isFromAccount || false,
         summary: {
           totalInvested: 0,
           totalValue: 0,

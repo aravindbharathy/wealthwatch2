@@ -507,6 +507,7 @@ export interface AssetSection extends BaseDocument {
   assets: Asset[];
   isExpanded: boolean;
   order: number;
+  isFromAccount?: boolean; // Flag to indicate if section was created from an account when selecting 'view holdings'
   summary: {
     totalInvested: number;
     totalValue: number;
@@ -542,12 +543,14 @@ export interface CreateAssetSectionInput {
   name: string;
   sheetId: string;
   order: number;
+  isFromAccount?: boolean; // Flag to indicate if section was created from an account when selecting 'view holdings'
 }
 
 export interface UpdateAssetSectionInput {
   name?: string;
   isExpanded?: boolean;
   order?: number;
+  isFromAccount?: boolean;
 }
 
 // Portfolio Value Tracking Types
