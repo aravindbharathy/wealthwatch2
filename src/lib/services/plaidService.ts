@@ -272,4 +272,65 @@ export class PlaidService {
            Array.isArray(data.securities) &&
            data.item;
   }
+
+  /**
+   * Create a sandbox public token
+   */
+  static async createSandboxToken(
+    institutionId: string = 'ins_109508', // Chase by default
+    initialProducts: string[] = ['investments', 'auth'],
+    userToken?: string
+  ): Promise<{ public_token: string; request_id: string }> {
+    const response = await this.callPlaidAPI('sandbox-token', {
+      institution_id: institutionId,
+      initial_products: initialProducts,
+      user_token: userToken
+    });
+    
+    if (!response.success) {
+      throw new Error(response.error || 'Failed to create sandbox token');
+    }
+    
+    return response.data;
+  }
+
+  /**
+   * Exchange public token for access token
+   */
+  static async exchangePublicToken(publicToken: string): Promise<{
+    access_token: string;
+    item_id: string;
+    request_id: string;
+  }> {
+    const response = await this.callPlaidAPI('exchange-token', {
+      public_token: publicToken
+    });
+    
+    if (!response.success) {
+      throw new Error(response.error || 'Failed to exchange public token');
+    }
+    
+    return response.data;
+  }
+
+  /**
+   * Complete flow: Create sandbox token, exchange it, and fetch holdings
+   */
+  static async testSandboxFlow(
+    institutionId: string = 'ins_109508',
+    initialProducts: string[] = ['investments', 'auth']
+  ): Promise<PlaidHoldingsResponse> {
+    try {
+      // Step 1: Create sandbox public token
+      const { public_token } = await this.createSandboxToken(institutionId, initialProducts);
+      
+      // Step 2: Exchange for access token
+      const { access_token } = await this.exchangePublicToken(public_token);
+      
+      // Step 3: Fetch holdings using the access token
+      return await this.getHoldings(access_token);
+    } catch (error) {
+      throw new Error(`Sandbox flow failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 }

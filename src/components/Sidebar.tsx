@@ -12,7 +12,8 @@ import {
   Link as LinkIcon, 
   Building2,
   Menu,
-  User
+  User,
+  TestTube
 } from "lucide-react";
 
 interface SidebarProps {
@@ -54,6 +55,12 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
       href: "/accounts",
       icon: Building2,
       value: "$0.00"
+    },
+    {
+      name: "Plaid Test",
+      href: "/plaid-test",
+      icon: TestTube,
+      value: "DEV"
     }
   ];
 
