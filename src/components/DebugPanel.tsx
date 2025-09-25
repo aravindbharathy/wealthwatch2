@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { clearPlaidData, clearLinkedAssets, clearAllAssets } from '@/lib/firebase/clearPlaidData';
+import { recalculateAllSectionSummaries } from '@/lib/firebase/firebaseUtils';
 import { useAuthNew } from '@/lib/contexts/AuthContext';
 
 interface DebugPanelProps {
@@ -12,8 +13,35 @@ export default function DebugPanel({ userId }: DebugPanelProps) {
   const [isClearing, setIsClearing] = useState(false);
   const [isClearingLinked, setIsClearingLinked] = useState(false);
   const [isClearingAll, setIsClearingAll] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const { user } = useAuthNew();
+
+  const handleRecalculateSummaries = async () => {
+    if (!confirm('🔄 Are you sure you want to recalculate all section summaries? This will update the IRR calculations.')) {
+      return;
+    }
+
+    setIsRecalculating(true);
+    setLastResult(null);
+
+    try {
+      const result = await recalculateAllSectionSummaries(userId);
+      setLastResult(result);
+      
+      if (result.success) {
+        alert('✅ All section summaries have been recalculated successfully!');
+      } else {
+        alert(`❌ Error recalculating summaries: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error recalculating summaries:', error);
+      setLastResult({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+      alert(`❌ Error recalculating summaries: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
 
   const handleClearPlaidData = async () => {
     if (!confirm('⚠️ Are you sure you want to clear ALL Plaid-imported data? This action cannot be undone.')) {
@@ -115,6 +143,14 @@ export default function DebugPanel({ userId }: DebugPanelProps) {
         </div>
         
         <div className="space-y-2">
+          <button
+            onClick={handleRecalculateSummaries}
+            disabled={isRecalculating}
+            className="w-full px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isRecalculating ? '🔄 Recalculating...' : '🔄 Recalculate Section Summaries'}
+          </button>
+          
           <button
             onClick={handleClearPlaidData}
             disabled={isClearing}
