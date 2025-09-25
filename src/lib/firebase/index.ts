@@ -90,18 +90,7 @@ export {
 // Portfolio helpers
 export {
   calculateNetWorth,
-  calculateAssetAllocation,
-  calculatePortfolioPerformance,
-  calculateCashFlow,
-  calculateRiskMetrics,
-  generatePortfolioAnalytics,
-  generateHistoricalData,
-  calculateGoalProgress,
-  formatCurrency,
-  formatPercentage,
-  getAssetTypeIcon,
-  getDebtTypeIcon,
-  getAccountTypeIcon
+  calculateAssetAllocation
 } from './portfolioHelpers';
 
 // Validation functions

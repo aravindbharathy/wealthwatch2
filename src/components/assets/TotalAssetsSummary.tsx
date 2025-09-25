@@ -44,7 +44,7 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
           if (asset.costBasis && asset.costBasis > 0) {
             currencyGroups[currency].costBasis += asset.costBasis;
           }
-          currencyGroups[currency].currentValue += asset.currentValue;
+          currencyGroups[currency].currentValue += asset.currentValue || 0;
         }
         
         let convertedInvested = 0;
@@ -95,7 +95,7 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
         const totalInvested = allAssets.reduce((sum, asset) => {
           return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
         }, 0);
-        const totalValue = allAssets.reduce((sum, asset) => sum + asset.currentValue, 0);
+        const totalValue = allAssets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
         const totalReturn = totalValue - totalInvested;
         const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
         

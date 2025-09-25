@@ -340,6 +340,43 @@ export default function AssetsPage() {
     return filtered;
   }, [allAssetsBySection, sections, filterAssetsByPreference, accounts, getAccountSummaries, accountsLoading, preferencesLoading, accountPreferences]);
 
+  // Create filtered assets for all sheets (for SheetTabs)
+  const filteredAllAssetsBySection = useMemo(() => {
+    // Early return if loading
+    if (preferencesLoading || accountsLoading) {
+      return allAssetsBySection;
+    }
+    
+    // Get account summaries once (only for consolidated view)
+    const accountSummaries = accounts.length > 0 ? getAccountSummaries(accounts) : [];
+    
+    const filtered: { [sectionId: string]: Asset[] } = {};
+    
+    // Apply filtering to all sections across all sheets
+    Object.keys(allAssetsBySection).forEach((sectionId, index) => {
+      const sectionAssets = allAssetsBySection[sectionId];
+      
+      // Filter out any undefined or invalid assets first
+      const validSectionAssets = sectionAssets.filter(asset => asset && asset.id);
+      
+      // Apply account display preferences filtering
+      const filteredAssets = filterAssetsByPreference(validSectionAssets, accounts);
+      
+      // Only add account summaries to the first section (default section)
+      if (index === 0 && accountSummaries.length > 0) {
+        const summariesForSection = accountSummaries.map((summary: Asset) => ({
+          ...summary,
+          sectionId: sectionId
+        }));
+        filtered[sectionId] = [...filteredAssets, ...summariesForSection];
+      } else {
+        filtered[sectionId] = filteredAssets;
+      }
+    });
+    
+    return filtered;
+  }, [allAssetsBySection, filterAssetsByPreference, accounts, getAccountSummaries, accountsLoading, preferencesLoading, accountPreferences]);
+
   // Get assets for the current sheet only
   const currentSheetAssets = useMemo(() => {
     if (!sections.length) return [];
@@ -795,7 +832,7 @@ export default function AssetsPage() {
 
 
         {/* Total Assets Summary - All sheets combined */}
-        <TotalAssetsSummary assetsBySection={allAssetsBySection} />
+        <TotalAssetsSummary assetsBySection={filteredAllAssetsBySection} />
 
         {/* Sheet Tabs */}
         <SheetTabs
@@ -806,7 +843,7 @@ export default function AssetsPage() {
           onRenameSheet={handleRenameSheet}
           onDeleteSheet={handleDeleteSheet}
           isAuthenticated={Boolean(user || isDemoUser)}
-          assetsBySection={allAssetsBySection}
+          assetsBySection={filteredAllAssetsBySection}
         />
 
         {/* Total Investments Summary - Only for current sheet */}

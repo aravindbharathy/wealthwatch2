@@ -69,7 +69,7 @@ export default function SheetTabs({
             if (!currencyGroups[currency]) {
               currencyGroups[currency] = 0;
             }
-            currencyGroups[currency] += asset.currentValue;
+            currencyGroups[currency] += asset.currentValue || 0;
           }
 
           let convertedValue = 0;
@@ -95,7 +95,7 @@ export default function SheetTabs({
           // Fallback to raw sum
           const fallbackValue = sheet.sections.reduce((total, section) => {
             const sectionAssets = assetsBySection[section.id] || [];
-            return total + sectionAssets.reduce((sectionTotal, asset) => sectionTotal + asset.currentValue, 0);
+            return total + sectionAssets.reduce((sectionTotal, asset) => sectionTotal + (asset.currentValue || 0), 0);
           }, 0);
           newConvertedValues[sheet.id] = fallbackValue;
         }
