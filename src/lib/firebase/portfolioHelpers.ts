@@ -146,8 +146,25 @@ export const calculateSectionSummary = (
   }, 0);
   
   const totalValue = assets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
+  
+  // Calculate IRR only for assets that have meaningful cost basis data
+  let totalReturnForIRR = 0;
+  let totalInvestedForIRR = 0;
+  
+  if (!isPlaidData) {
+    assets.forEach(asset => {
+      if (asset.costBasis !== undefined && asset.costBasis > 0) {
+        totalInvestedForIRR += asset.costBasis;
+        totalReturnForIRR += (asset.currentValue || 0) - asset.costBasis;
+      }
+    });
+  }
+  
+  // Use the IRR calculation only for assets with cost basis
+  const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
+  
+  // Total return includes all assets (for display purposes)
   const totalReturn = totalValue - totalInvested;
-  const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
   
   return {
     totalInvested,

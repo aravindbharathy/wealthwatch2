@@ -74,17 +74,26 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
         
         const conversions = await Promise.all(conversionPromises);
         
-        // Sum up all conversions
+        // Calculate IRR only for assets with cost basis (separate from total value)
+        let convertedReturnForIRR = 0;
+        let convertedInvestedForIRR = 0;
+        
         for (const conversion of conversions) {
-          convertedInvested += conversion.costBasis;
+          convertedInvestedForIRR += conversion.costBasis;
+          // For IRR calculation, only include return from assets that have cost basis
+          convertedReturnForIRR += conversion.costBasis > 0 ? (conversion.currentValue - conversion.costBasis) : 0;
+        }
+        
+        // Sum up all conversions for total value (includes all assets)
+        for (const conversion of conversions) {
           convertedValue += conversion.currentValue;
         }
         
-        const convertedReturn = convertedValue - convertedInvested;
-        const convertedReturnPercent = convertedInvested > 0 ? (convertedReturn / convertedInvested) * 100 : 0;
+        const convertedReturn = convertedValue - convertedInvestedForIRR;
+        const convertedReturnPercent = convertedInvestedForIRR > 0 ? (convertedReturnForIRR / convertedInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
-          totalInvested: convertedInvested,
+          totalInvested: convertedInvestedForIRR,
           totalValue: convertedValue,
           totalReturn: convertedReturn,
           totalReturnPercent: convertedReturnPercent,
@@ -92,15 +101,23 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
       } catch (error) {
         console.error('Error converting totals:', error);
         // Fallback to original values
-        const totalInvested = allAssets.reduce((sum, asset) => {
-          return asset.costBasis !== undefined && asset.costBasis > 0 ? sum + asset.costBasis : sum;
-        }, 0);
+        // Calculate IRR only for assets with cost basis
+        let totalReturnForIRR = 0;
+        let totalInvestedForIRR = 0;
+        
+        allAssets.forEach(asset => {
+          if (asset.costBasis !== undefined && asset.costBasis > 0) {
+            totalInvestedForIRR += asset.costBasis;
+            totalReturnForIRR += (asset.currentValue || 0) - asset.costBasis;
+          }
+        });
+        
         const totalValue = allAssets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
-        const totalReturn = totalValue - totalInvested;
-        const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+        const totalReturn = totalValue - totalInvestedForIRR;
+        const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
-          totalInvested,
+          totalInvested: totalInvestedForIRR,
           totalValue,
           totalReturn,
           totalReturnPercent,
