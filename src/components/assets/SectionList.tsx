@@ -27,6 +27,7 @@ interface SectionListProps {
   onToggleSection: (sectionId: string) => void;
   onAddAsset: (sectionId: string) => void;
   onEditSection: (sectionId: string) => void;
+  onRenameSection: (sectionId: string, newName: string) => void;
   onDeleteSection: (sectionId: string) => void;
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
@@ -45,6 +46,7 @@ export default function SectionList({
   onToggleSection,
   onAddAsset,
   onEditSection,
+  onRenameSection,
   onDeleteSection,
   onEditAsset,
   onDeleteAsset,
@@ -325,6 +327,7 @@ export default function SectionList({
               onToggle={onToggleSection}
               onAddAsset={onAddAsset}
               onEditSection={onEditSection}
+              onRenameSection={onRenameSection}
               onDeleteSection={onDeleteSection}
               onEditAsset={onEditAsset}
               onDeleteAsset={onDeleteAsset}

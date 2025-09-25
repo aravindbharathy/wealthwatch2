@@ -518,6 +518,14 @@ export default function AssetsPage() {
     // TODO: Implement edit section functionality
   };
 
+  const handleRenameSection = async (sectionId: string, newName: string) => {
+    try {
+      await updateSection(sectionId, { name: newName });
+    } catch (error) {
+      console.error('Error renaming section:', error);
+    }
+  };
+
   const handleDeleteSection = async (sectionId: string) => {
     if (confirm('Are you sure you want to delete this section? All assets in this section will also be deleted.')) {
       try {
@@ -948,6 +956,7 @@ export default function AssetsPage() {
           onToggleSection={handleToggleSection}
           onAddAsset={handleAddAsset}
           onEditSection={handleEditSection}
+          onRenameSection={handleRenameSection}
           onDeleteSection={handleDeleteSection}
           onEditAsset={handleEditAsset}
           onDeleteAsset={handleDeleteAsset}

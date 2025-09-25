@@ -14,6 +14,7 @@ interface SectionItemProps {
   onToggle: (sectionId: string) => void;
   onAddAsset: (sectionId: string) => void;
   onEditSection: (sectionId: string) => void;
+  onRenameSection: (sectionId: string, newName: string) => void;
   onDeleteSection: (sectionId: string) => void;
   onEditAsset: (assetId: string) => void;
   onDeleteAsset: (assetId: string) => void;
@@ -32,6 +33,7 @@ export default function SectionItem({
   onToggle,
   onAddAsset,
   onEditSection,
+  onRenameSection,
   onDeleteSection,
   onEditAsset,
   onDeleteAsset,
@@ -61,7 +63,10 @@ export default function SectionItem({
     disabled: !isSectionEmpty, // Only enable for empty sections
   });
   const [showActions, setShowActions] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingName, setEditingName] = useState(section.name);
   const actionsRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Close actions menu when clicking outside
   useEffect(() => {
@@ -76,6 +81,44 @@ export default function SectionItem({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  // Update editing name when section name changes
+  useEffect(() => {
+    setEditingName(section.name);
+  }, [section.name]);
+
+  const handleRenameClick = () => {
+    setIsEditingName(true);
+    setShowActions(false);
+  };
+
+  const handleNameSave = () => {
+    if (editingName.trim() && editingName.trim() !== section.name) {
+      onRenameSection(section.id, editingName.trim());
+    }
+    setIsEditingName(false);
+  };
+
+  const handleNameCancel = () => {
+    setEditingName(section.name);
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleNameSave();
+    } else if (e.key === 'Escape') {
+      handleNameCancel();
+    }
+  };
 
   const formatPercent = (percent: number) => {
     const sign = percent >= 0 ? '+' : '';
@@ -203,7 +246,19 @@ export default function SectionItem({
               </svg>
             </div>
             <div className="flex items-center">
-              <h3 className="text-base font-semibold text-gray-900">{section.name}</h3>
+              {isEditingName ? (
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onBlur={handleNameSave}
+                  onKeyDown={handleNameKeyDown}
+                  className="text-base font-semibold text-gray-900 bg-transparent border-b-2 border-blue-500 outline-none"
+                />
+              ) : (
+                <h3 className="text-base font-semibold text-gray-900">{section.name}</h3>
+              )}
               {section.isFromAccount && (
                 <div className="ml-2 flex items-center" title="Created from account holdings">
                   <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,7 +335,19 @@ export default function SectionItem({
           
           {/* Section Name */}
           <div className="flex items-center">
-            <h3 className="text-base font-semibold text-gray-900">{section.name}</h3>
+            {isEditingName ? (
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={handleNameKeyDown}
+                className="text-base font-semibold text-gray-900 bg-transparent border-b-2 border-blue-500 outline-none"
+              />
+            ) : (
+              <h3 className="text-base font-semibold text-gray-900">{section.name}</h3>
+            )}
             {section.isFromAccount && (
               <div className="ml-2 flex items-center" title="Created from account holdings">
                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,13 +401,26 @@ export default function SectionItem({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        handleRenameClick();
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Rename</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         onEditSection(section.id);
                         setShowActions(false);
                       }}
                       className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                       <span>Edit</span>
                     </button>
