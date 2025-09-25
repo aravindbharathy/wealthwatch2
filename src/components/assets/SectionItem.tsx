@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AssetSection, Asset } from '@/lib/firebase/types';
 import AssetTable from './AssetTable';
 import { useDroppable } from '@dnd-kit/core';
 import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import { convertCurrency } from '@/lib/currency';
+import CurrencyFormattedValue from '@/components/CurrencyFormattedValue';
 
 interface SectionItemProps {
   section: AssetSection;
@@ -58,6 +59,21 @@ export default function SectionItem({
     disabled: !isSectionEmpty, // Only enable for empty sections
   });
   const [showActions, setShowActions] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  // Close actions menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setShowActions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const formatPercent = (percent: number) => {
     const sign = percent >= 0 ? '+' : '';
@@ -201,6 +217,7 @@ export default function SectionItem({
                 <div className="relative">
                   <button
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       setShowActions(!showActions);
                     }}
@@ -264,20 +281,18 @@ export default function SectionItem({
             {totalInvested > 0 ? formatPercent(totalReturnPercent) : '--'}
           </div>
           <div className="flex justify-end items-center text-sm text-gray-900 font-medium">
-            {new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: preferredCurrency,
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(totalInvested)}
+            <CurrencyFormattedValue 
+              amount={totalInvested} 
+              fromCurrency={preferredCurrency}
+              className="text-sm font-medium text-gray-900"
+            />
           </div>
           <div className="flex justify-end items-center text-sm text-gray-900 font-medium">
-            {new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: preferredCurrency,
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(totalValue)}
+            <CurrencyFormattedValue 
+              amount={totalValue} 
+              fromCurrency={preferredCurrency}
+              className="text-sm font-medium text-gray-900"
+            />
           </div>
           
           {/* Actions Menu */}
@@ -286,6 +301,7 @@ export default function SectionItem({
               <div className="relative">
                 <button
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     setShowActions(!showActions);
                   }}
@@ -298,7 +314,7 @@ export default function SectionItem({
                 </button>
 
                 {showActions && (
-                  <div className="absolute right-0 top-8 bg-white border border-gray-200 shadow-xl py-1 min-w-[160px] z-10">
+                  <div ref={actionsRef} className="absolute right-0 top-8 bg-white border border-gray-200 shadow-xl py-1 min-w-[160px] z-10">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

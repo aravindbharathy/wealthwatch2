@@ -7,7 +7,6 @@ import {
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import CurrencyFormattedValue from '@/components/CurrencyFormattedValue';
 
 interface AssetTableProps {
@@ -35,7 +34,6 @@ export default function AssetTable({
   sectionId,
   activeAssetId,
 }: AssetTableProps) {
-  const { formatCurrency: formatCurrencyUtil } = useCurrency();
   const [popupState, setPopupState] = useState<{
     isOpen: boolean;
     assetId: string | null;
@@ -46,17 +44,18 @@ export default function AssetTable({
     position: { top: 0, left: 0 },
   });
 
-  // Track the button element that opened the popup for position updates
-  const popupTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const buttonRefs = useRef<{ [assetId: string]: HTMLButtonElement | null }>({});
 
 
   const openPopup = (assetId: string, event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     
-    // Store reference to the button that triggered the popup
-    popupTriggerRef.current = buttonRefs.current[assetId] || event.currentTarget as HTMLButtonElement;
+    // If clicking on the same asset that already has a popup open, close it
+    if (popupState.isOpen && popupState.assetId === assetId) {
+      closePopup();
+      return;
+    }
+    
     
     const rect = event.currentTarget.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
@@ -72,14 +71,17 @@ export default function AssetTable({
       left = viewportWidth - popupWidth - 10; // Ensure it doesn't go off-screen
     }
     
-    setPopupState({
-      isOpen: true,
-      assetId,
-      position: {
-        top: rect.bottom + 4, // Use viewport coordinates for fixed positioning
-        left: left,
-      },
-    });
+    // Use setTimeout to delay the popup opening to prevent immediate closure by mousedown
+    setTimeout(() => {
+      setPopupState({
+        isOpen: true,
+        assetId,
+        position: {
+          top: rect.bottom + 4, // Use viewport coordinates for fixed positioning
+          left: left,
+        },
+      });
+    }, 0);
   };
 
   const closePopup = () => {
@@ -88,46 +90,8 @@ export default function AssetTable({
       assetId: null,
       position: { top: 0, left: 0 },
     });
-    popupTriggerRef.current = null;
   };
 
-  // Update popup position on scroll
-  useEffect(() => {
-    const updatePopupPosition = () => {
-      if (popupState.isOpen && popupTriggerRef.current) {
-        const rect = popupTriggerRef.current.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const popupWidth = 160; // min-w-[160px]
-        
-        // Calculate position to ensure popup stays within viewport
-        let left = rect.right - popupWidth; // Position to the right of the button
-        if (left < 10) {
-          left = rect.left; // If not enough space on the right, position to the left
-        }
-        if (left + popupWidth > viewportWidth - 10) {
-          left = viewportWidth - popupWidth - 10; // Ensure it doesn't go off-screen
-        }
-        
-        setPopupState(prev => ({
-          ...prev,
-          position: {
-            top: rect.bottom + 4,
-            left: left,
-          },
-        }));
-      }
-    };
-
-    if (popupState.isOpen) {
-      window.addEventListener('scroll', updatePopupPosition, { passive: true });
-      window.addEventListener('resize', updatePopupPosition, { passive: true });
-    }
-
-    return () => {
-      window.removeEventListener('scroll', updatePopupPosition);
-      window.removeEventListener('resize', updatePopupPosition);
-    };
-  }, [popupState.isOpen]);
 
 
   const formatCurrency = (amount: number) => {
@@ -235,7 +199,6 @@ export default function AssetTable({
                 formatCurrency={formatCurrency}
                 formatPercent={formatPercent}
                 getPerformanceIcon={getPerformanceIcon}
-                buttonRefs={buttonRefs}
               />
             </React.Fragment>
           );
@@ -280,7 +243,6 @@ interface SortableAssetRowProps {
   formatCurrency: (amount: number) => string;
   formatPercent: (percent: number) => string;
   getPerformanceIcon: (change: number) => JSX.Element | null;
-  buttonRefs: React.MutableRefObject<{ [assetId: string]: HTMLButtonElement | null }>;
 }
 
 const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
@@ -295,7 +257,6 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
   formatCurrency,
   formatPercent,
   getPerformanceIcon,
-  buttonRefs,
 }) => {
   const {
     attributes,
@@ -388,9 +349,6 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
       {isAuthenticated && (
         <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            ref={(el) => {
-              buttonRefs.current[asset.id] = el;
-            }}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -467,14 +425,11 @@ const PopupMenu: React.FC<PopupMenuProps> = ({ isOpen, onClose, onEdit, onDelete
       }
     };
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [onClose]);
 
   if (!isOpen) return null;
 

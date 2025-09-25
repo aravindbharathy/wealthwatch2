@@ -16,7 +16,7 @@ export default function CurrencyFormattedValue({
   className = '',
   fallback 
 }: CurrencyFormattedValueProps) {
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency, preferredCurrency } = useCurrency();
   const [formattedValue, setFormattedValue] = useState<string>(fallback || '$0');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -50,7 +50,7 @@ export default function CurrencyFormattedValue({
     };
 
     formatValue();
-  }, [amount, fromCurrency, fallback]); // Removed formatCurrency from dependencies
+  }, [amount, fromCurrency, fallback, formatCurrency, preferredCurrency]);
 
   if (isLoading) {
     return (
