@@ -143,7 +143,7 @@ export default function SectionItem({
             currencyGroups[currency] = { costBasis: 0, currentValue: 0 };
           }
           
-          if (asset.costBasis && asset.costBasis > 0) {
+          if (asset.costBasis !== undefined && asset.costBasis > 0) {
             currencyGroups[currency].costBasis += asset.costBasis;
           }
           currencyGroups[currency].currentValue += asset.currentValue || 0;
@@ -196,7 +196,7 @@ export default function SectionItem({
         // Fallback to original values
         const totalInvested = assets.reduce((sum, asset) => {
           if (!asset || !asset.id) return sum;
-          return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+          return asset.costBasis !== undefined && asset.costBasis > 0 ? sum + asset.costBasis : sum;
         }, 0);
         const totalValue = assets.reduce((sum, asset) => {
           if (!asset || !asset.id) return sum;
@@ -364,11 +364,15 @@ export default function SectionItem({
             {totalInvested > 0 ? formatPercent(totalReturnPercent) : '--'}
           </div>
           <div className="flex justify-end items-center text-sm text-gray-900 font-medium">
-            <CurrencyFormattedValue 
-              amount={totalInvested} 
-              fromCurrency={preferredCurrency}
-              className="text-sm font-medium text-gray-900"
-            />
+            {totalInvested > 0 ? (
+              <CurrencyFormattedValue 
+                amount={totalInvested} 
+                fromCurrency={preferredCurrency}
+                className="text-sm font-medium text-gray-900"
+              />
+            ) : (
+              <span className="text-gray-400">--</span>
+            )}
           </div>
           <div className="flex justify-end items-center text-sm text-gray-900 font-medium">
             <CurrencyFormattedValue 

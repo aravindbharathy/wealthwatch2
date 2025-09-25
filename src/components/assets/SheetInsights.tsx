@@ -62,7 +62,7 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
             currencyGroups[currency] = { costBasis: 0, currentValue: 0 };
           }
           
-          if (asset.costBasis && asset.costBasis > 0) {
+          if (asset.costBasis !== undefined && asset.costBasis > 0) {
             currencyGroups[currency].costBasis += asset.costBasis;
           }
           currencyGroups[currency].currentValue += asset.currentValue || 0;
@@ -114,7 +114,7 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
         console.error('Error converting totals:', error);
         // Fallback to original values
         const totalInvested = currentSheetAssets.reduce((sum, asset) => {
-          return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+          return asset.costBasis !== undefined && asset.costBasis > 0 ? sum + asset.costBasis : sum;
         }, 0);
         const totalValue = currentSheetAssets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
         const totalReturn = totalValue - totalInvested;

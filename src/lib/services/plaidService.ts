@@ -117,10 +117,9 @@ export class PlaidService {
    */
   static transformPlaidAccountToAccount(
     plaidAccount: PlaidAccount, 
-    sectionId: string, 
     institutionName: string = 'Unknown Institution'
   ): Omit<Account, 'id' | 'createdAt' | 'updatedAt'> {
-    return {
+    const accountData: Omit<Account, 'id' | 'createdAt' | 'updatedAt'> = {
       name: plaidAccount.name,
       officialName: plaidAccount.official_name,
       type: this.mapPlaidAccountType(plaidAccount.type),
@@ -140,8 +139,6 @@ export class PlaidService {
       lastSyncAt: Timestamp.now(),
       syncErrors: [],
       holdingAssetIds: [],
-      sectionId,
-      position: 0,
       displayPreference: 'consolidated', // Default to showing consolidated account view
       performance: {
         totalReturnPercent: 0,
@@ -156,6 +153,9 @@ export class PlaidService {
       transactions: [],
       valueByDate: [],
     };
+    
+    // Don't include costBasis field for Plaid accounts (Firebase doesn't accept undefined values)
+    return accountData;
   }
   
   /**
@@ -187,7 +187,7 @@ export class PlaidService {
       avgCost: holding.cost_basis,
       totalReturn,
       sectionId,
-      position: 0,
+      position: 0, // Will be calculated when added to section
       accountMapping: {
         isLinked: true,
         accountId,

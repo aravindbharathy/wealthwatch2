@@ -9,7 +9,7 @@ import { useAccountDisplayPreferences } from '@/lib/hooks/useAccountDisplayPrefe
 import DebugPanel from '@/components/DebugPanel';
 import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import { AssetSheet, AssetSection, Asset, CreateAssetInput, CreateAssetSheetInput, CreateAssetSectionInput } from '@/lib/firebase/types';
-import { createAsset, deleteAsset, reorderAssets, updateAsset } from '@/lib/firebase/firebaseUtils';
+import { createAsset, deleteAsset, reorderAssets, updateAsset, updateAccountSummaryPosition, initializeAccountSummaryPositions, reorderAccountSummaries, getNextPositionInSection } from '@/lib/firebase/firebaseUtils';
 import { initializePortfolioWithSampleData } from '@/lib/firebase/portfolioUtils';
 import { 
   collection, 
@@ -18,7 +18,10 @@ import {
   doc,
   query, 
   where,
-  onSnapshot 
+  onSnapshot,
+  updateDoc,
+  writeBatch,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import { config } from '@/lib/config';
@@ -290,6 +293,21 @@ export default function AssetsPage() {
     return sections;
   }, [activeSheet?.id, activeSheet?.sections]);
 
+  // Initialize account summary positions when accounts are first loaded
+  useEffect(() => {
+    const initializePositions = async () => {
+      if (accounts.length > 0 && sections.length > 0 && effectiveUserId && activeSheetId) {
+        // Find the first section (where account summaries should go)
+        const firstSection = sections.find(s => s.id);
+        if (firstSection) {
+          await initializeAccountSummaryPositions(effectiveUserId, activeSheetId, firstSection.id);
+        }
+      }
+    };
+
+    initializePositions();
+  }, [accounts.length, sections.length, effectiveUserId, activeSheetId]);
+
   // Get all sections across all sheets for SheetTabs
   const allSections = useMemo(() => {
     return currentSheets.flatMap(sheet => sheet.sections || []);
@@ -308,12 +326,22 @@ export default function AssetsPage() {
     const currentSectionIds = new Set(sections.map(s => s.id));
     const filtered: { [sectionId: string]: Asset[] } = {};
     
-    // Get account summaries once (only for consolidated view)
-    // Only generate summaries when accounts and preferences are loaded and not loading
-    const accountSummaries = accounts.length > 0 ? getAccountSummaries(accounts) : [];
+    // Get account summaries for the current sheet only
+    const accountSummaries = accounts.length > 0 ? getAccountSummaries(accounts, activeSheetId) : [];
     
+    // Group account summaries by section
+    const summariesBySection: { [sectionId: string]: Asset[] } = {};
+    accountSummaries.forEach(summary => {
+      if (summary.sectionId && currentSectionIds.has(summary.sectionId)) {
+        if (summariesBySection[summary.sectionId]) {
+          summariesBySection[summary.sectionId].push(summary);
+        } else {
+          summariesBySection[summary.sectionId] = [summary];
+        }
+      }
+    });
     
-    Object.keys(allAssetsBySection).forEach((sectionId, index) => {
+    Object.keys(allAssetsBySection).forEach((sectionId) => {
       if (currentSectionIds.has(sectionId)) {
         const sectionAssets = allAssetsBySection[sectionId];
         
@@ -323,22 +351,19 @@ export default function AssetsPage() {
         // Apply account display preferences filtering
         const filteredAssets = filterAssetsByPreference(validSectionAssets, accounts);
         
+        // Add account summaries for this section
+        const sectionSummaries = summariesBySection[sectionId] || [];
         
-        // Only add account summaries to the first section (default section)
-        if (index === 0 && accountSummaries.length > 0) {
-          const summariesForSection = accountSummaries.map((summary: Asset) => ({
-            ...summary,
-            sectionId: sectionId
-          }));
-          filtered[sectionId] = [...filteredAssets, ...summariesForSection];
-        } else {
-          filtered[sectionId] = filteredAssets;
-        }
+        // Combine real assets with account summaries and sort by position
+        const combinedAssets = [...filteredAssets, ...sectionSummaries];
+        combinedAssets.sort((a, b) => a.position - b.position);
+        
+        filtered[sectionId] = combinedAssets;
       }
     });
     
     return filtered;
-  }, [allAssetsBySection, sections, filterAssetsByPreference, accounts, getAccountSummaries, accountsLoading, preferencesLoading, accountPreferences]);
+  }, [allAssetsBySection, sections, filterAssetsByPreference, accounts, getAccountSummaries, accountsLoading, preferencesLoading, accountPreferences, activeSheetId]);
 
   // Create filtered assets for all sheets (for SheetTabs)
   const filteredAllAssetsBySection = useMemo(() => {
@@ -347,13 +372,25 @@ export default function AssetsPage() {
       return allAssetsBySection;
     }
     
-    // Get account summaries once (only for consolidated view)
+    // Get account summaries for all sheets (comprehensive positioning)
     const accountSummaries = accounts.length > 0 ? getAccountSummaries(accounts) : [];
+    
+    // Group account summaries by section across all sheets
+    const summariesBySection: { [sectionId: string]: Asset[] } = {};
+    accountSummaries.forEach(summary => {
+      if (summary.sectionId) {
+        if (summariesBySection[summary.sectionId]) {
+          summariesBySection[summary.sectionId].push(summary);
+        } else {
+          summariesBySection[summary.sectionId] = [summary];
+        }
+      }
+    });
     
     const filtered: { [sectionId: string]: Asset[] } = {};
     
     // Apply filtering to all sections across all sheets
-    Object.keys(allAssetsBySection).forEach((sectionId, index) => {
+    Object.keys(allAssetsBySection).forEach((sectionId) => {
       const sectionAssets = allAssetsBySection[sectionId];
       
       // Filter out any undefined or invalid assets first
@@ -362,16 +399,14 @@ export default function AssetsPage() {
       // Apply account display preferences filtering
       const filteredAssets = filterAssetsByPreference(validSectionAssets, accounts);
       
-      // Only add account summaries to the first section (default section)
-      if (index === 0 && accountSummaries.length > 0) {
-        const summariesForSection = accountSummaries.map((summary: Asset) => ({
-          ...summary,
-          sectionId: sectionId
-        }));
-        filtered[sectionId] = [...filteredAssets, ...summariesForSection];
-      } else {
-        filtered[sectionId] = filteredAssets;
-      }
+      // Add account summaries for this section
+      const sectionSummaries = summariesBySection[sectionId] || [];
+      
+      // Combine real assets with account summaries and sort by position
+      const combinedAssets = [...filteredAssets, ...sectionSummaries];
+      combinedAssets.sort((a, b) => a.position - b.position);
+      
+      filtered[sectionId] = combinedAssets;
     });
     
     return filtered;
@@ -597,6 +632,48 @@ export default function AssetsPage() {
 
   const handleReorderAssets = async (assetId: string, newSectionId: string, newIndex: number) => {
     try {
+      // Check if this is a virtual asset (account summary)
+      if (assetId.startsWith('account-summary-')) {
+        // Extract the account ID from the virtual asset ID
+        const accountId = assetId.replace('account-summary-', '');
+        
+        // Find the current section where the account summary is located
+        let sourceSectionId = '';
+        for (const [sectionId, assets] of Object.entries(assetsBySection)) {
+          const asset = assets.find(a => a.id === assetId);
+          if (asset) {
+            sourceSectionId = sectionId;
+            break;
+          }
+        }
+        
+        // If moving to a different section, calculate the correct position
+        let targetPosition = newIndex;
+        if (sourceSectionId !== newSectionId) {
+          // For cross-section moves, place at the end of the target section
+          targetPosition = await getNextPositionInSection(effectiveUserId, newSectionId);
+        }
+        
+        // Update the account's summary position in the database
+        const result = await updateAccountSummaryPosition(
+          effectiveUserId, 
+          accountId, 
+          activeSheetId, 
+          newSectionId, 
+          targetPosition
+        );
+        
+        if (result.success) {
+          // The useAccountDisplayPreferences hook will automatically refresh and show the new order
+          console.log('Account summary position updated successfully');
+        } else {
+          console.error('❌ Failed to update account summary position:', result.error);
+          alert('Failed to reorder account summary. Please try again.');
+        }
+        return;
+      }
+
+      // Handle real asset reordering with database calls
       const result = await reorderAssets(effectiveUserId, assetId, newSectionId, newIndex);
       
       if (result.success) {

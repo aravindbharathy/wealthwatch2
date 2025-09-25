@@ -114,7 +114,7 @@ export interface Asset extends BaseDocument {
   quantity: number;
   currentPrice?: number;
   currentValue: number;
-  costBasis: number;
+  costBasis?: number;
   avgCost?: number;
   valueByDate: AssetValueEntry[];
   transactions?: AssetTransaction[];
@@ -256,6 +256,9 @@ export interface Account extends BaseDocument {
     lastUpdated: Timestamp;
   };
   
+  // Cost basis (null/undefined for Plaid accounts since cost basis is tracked at asset level)
+  costBasis?: number;
+  
   // Connection info
   connectionStatus: 'connected' | 'disconnected' | 'error' | 'manual';
   provider: 'plaid' | 'yodlee' | 'manual';
@@ -265,12 +268,15 @@ export interface Account extends BaseDocument {
   // Holdings (stored as linked assets)
   holdingAssetIds: string[]; // References to assets held in this account
   
-  // Section placement
-  sectionId: string; // Which section this account appears in
-  position: number; // Position within section
-  
   // Display preference
   displayPreference: 'consolidated' | 'holdings'; // How to display this account in the UI
+  
+  // Account summary positioning
+  summaryPosition?: {
+    sheetId: string;     // Which sheet the account summary appears in
+    sectionId: string;   // Which section the account summary appears in
+    position: number;    // Position within that section
+  };
   
   // Performance (calculated from holdings)
   performance: AccountPerformance;
@@ -450,7 +456,7 @@ export interface CreateAssetInput {
   quantity: number;
   currentPrice?: number;
   currentValue: number;
-  costBasis: number;
+  costBasis?: number;
   sectionId: string;
   position?: number; // Optional - will be calculated automatically if not provided
   metadata: Partial<AssetMetadata>;
@@ -477,6 +483,7 @@ export interface CreateAccountInput {
   balances: AccountBalances;
   isActive: boolean;
   connectionStatus: Account['connectionStatus'];
+  costBasis?: number;
 }
 
 export interface CreateGoalInput {

@@ -124,7 +124,7 @@ export function useAccountDisplayPreferences(userId: string) {
   }, [preferences]);
 
   // Get account summaries for consolidated view
-  const getAccountSummaries = useCallback((accounts: Account[]): Asset[] => {
+  const getAccountSummaries = useCallback((accounts: Account[], targetSheetId?: string): Asset[] => {
     
     const summaries = accounts
       .filter(account => {
@@ -132,6 +132,15 @@ export function useAccountDisplayPreferences(userId: string) {
         return preference === 'consolidated';
       })
       .map(account => {
+        // Determine which section this account summary should appear in
+        const summaryPosition = account.summaryPosition;
+        let targetSectionId = '';
+        let position = 0;
+        
+        if (summaryPosition && (!targetSheetId || summaryPosition.sheetId === targetSheetId)) {
+          targetSectionId = summaryPosition.sectionId;
+          position = summaryPosition.position;
+        }
         return {
           id: `account-summary-${account.id}`,
           name: account.name,
@@ -139,10 +148,10 @@ export function useAccountDisplayPreferences(userId: string) {
           currentValue: account.balances.current,
           currency: account.currency,
           quantity: 1,
-          costBasis: account.balances.current,
-          sectionId: '', // Will be set by the calling component
+          costBasis: account.costBasis, // Use account's costBasis field (undefined for Plaid accounts)
+          sectionId: targetSectionId, // Set the target section
           totalReturn: 0, // Account summaries don't have returns
-          position: 0, // Default position
+          position: position, // Use the stored position
           createdAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 } as any, // Default creation date
           updatedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 } as any, // Default update date
           metadata: {
@@ -168,9 +177,16 @@ export function useAccountDisplayPreferences(userId: string) {
             accountId: account.id,
           },
         } as Asset;
-      });
+      })
+      .filter(summary => summary.sectionId); // Only include summaries that have a valid section
     
-    return summaries;
+    // Sort summaries by their position within their respective sections
+    return summaries.sort((a, b) => {
+      if (a.sectionId !== b.sectionId) {
+        return 0; // Don't sort across sections here, let the section sorting handle it
+      }
+      return a.position - b.position;
+    });
   }, [preferences]);
 
   // Get holdings for a specific account (for holdings view)

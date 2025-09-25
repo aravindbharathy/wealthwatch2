@@ -26,7 +26,6 @@ export class AccountService {
       for (const plaidAccount of plaidData.accounts) {
         const accountData = PlaidService.transformPlaidAccountToAccount(
           plaidAccount, 
-          sectionId, 
           institutionName
         );
         

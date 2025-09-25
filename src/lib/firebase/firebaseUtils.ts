@@ -270,10 +270,10 @@ export const createAsset = async (userId: string, assetData: CreateAssetInput): 
     const assetDoc = {
       ...assetData,
       position: assetData.position ?? nextPosition,
-      avgCost: assetData.quantity > 0 ? assetData.costBasis / assetData.quantity : 0,
+      avgCost: assetData.quantity > 0 && assetData.costBasis !== undefined ? assetData.costBasis / assetData.quantity : 0,
       valueByDate: [],
       transactions: [],
-      totalReturn: assetData.currentValue - assetData.costBasis,
+      totalReturn: assetData.costBasis !== undefined ? assetData.currentValue - assetData.costBasis : 0,
       accountMapping: {
         isLinked: false
       },
@@ -284,7 +284,7 @@ export const createAsset = async (userId: string, assetData: CreateAssetInput): 
         ...assetData.metadata
       },
       performance: {
-        totalReturnPercent: assetData.costBasis > 0 ? 
+        totalReturnPercent: assetData.costBasis !== undefined && assetData.costBasis > 0 ? 
           ((assetData.currentValue - assetData.costBasis) / assetData.costBasis) * 100 : 0
       },
       createdAt: serverTimestamp(),
@@ -571,7 +571,7 @@ export const deleteDebt = async (userId: string, debtId: string): Promise<ApiRes
 
 export const createAccount = async (userId: string, accountData: CreateAccountInput): Promise<ApiResponse<Account>> => {
   try {
-    const accountDoc = {
+    const accountDoc: any = {
       ...accountData,
       holdings: [],
       transactions: [],
@@ -582,6 +582,11 @@ export const createAccount = async (userId: string, accountData: CreateAccountIn
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
+    
+    // Only include costBasis if it's defined (Firebase doesn't accept undefined values)
+    if (accountData.costBasis !== undefined) {
+      accountDoc.costBasis = accountData.costBasis;
+    }
 
     const docRef = await addDoc(collection(db, `users/${userId}/accounts`), accountDoc);
     const createdAccount = await getAccount(userId, docRef.id);
@@ -903,5 +908,203 @@ export const searchTickers = async (searchTerm: string): Promise<ApiResponse<Tic
     return { success: true, data: filteredTickers };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
+// Update account summary position
+export const updateAccountSummaryPosition = async (
+  userId: string,
+  accountId: string,
+  sheetId: string,
+  sectionId: string,
+  position: number
+): Promise<ApiResponse<void>> => {
+  try {
+    const accountRef = doc(db, `users/${userId}/accounts`, accountId);
+    await updateDoc(accountRef, {
+      summaryPosition: {
+        sheetId,
+        sectionId,
+        position
+      },
+      updatedAt: serverTimestamp()
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating account summary position:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+};
+
+// Initialize account summary positions for accounts without positions
+export const initializeAccountSummaryPositions = async (
+  userId: string,
+  defaultSheetId: string,
+  defaultSectionId: string
+): Promise<ApiResponse<void>> => {
+  try {
+    // Get all accounts first to identify which assets should be excluded
+    const accountsRef = collection(db, `users/${userId}/accounts`);
+    const accountsSnapshot = await getDocs(accountsRef);
+    
+    // Create a set of account IDs that have displayPreference: 'consolidated'
+    const consolidatedAccountIds = new Set();
+    accountsSnapshot.docs.forEach((doc) => {
+      const account = doc.data();
+      if (account.displayPreference === 'consolidated') {
+        consolidatedAccountIds.add(doc.id);
+      }
+    });
+    
+    // Get all assets in the target section, but exclude those belonging to consolidated accounts
+    const assetsRef = collection(db, `users/${userId}/assets`);
+    const assetsQuery = query(assetsRef, where('sectionId', '==', defaultSectionId));
+    const assetsSnapshot = await getDocs(assetsQuery);
+    
+    // Calculate the maximum position among assets that are NOT part of consolidated accounts
+    let maxPosition = -1;
+    assetsSnapshot.docs.forEach((doc) => {
+      const asset = doc.data();
+      const hasAccountMapping = asset.accountMapping?.accountId;
+      const isConsolidatedAccount = hasAccountMapping && consolidatedAccountIds.has(asset.accountMapping.accountId);
+      
+      // Only consider assets that don't belong to consolidated accounts
+      if (asset.position !== undefined && 
+          asset.position > maxPosition &&
+          (!hasAccountMapping || !isConsolidatedAccount)) {
+        maxPosition = asset.position;
+      }
+    });
+    
+    // Find the maximum position among existing account summaries in this section
+    accountsSnapshot.docs.forEach((doc) => {
+      const account = doc.data();
+      if (account.summaryPosition && 
+          account.summaryPosition.sheetId === defaultSheetId &&
+          account.summaryPosition.sectionId === defaultSectionId) {
+        if (account.summaryPosition.position > maxPosition) {
+          maxPosition = account.summaryPosition.position;
+        }
+      }
+    });
+    
+    // Start new account summaries after the last item in the section
+    let startPosition = maxPosition + 1;
+    
+    // Find accounts that need positioning
+    const accountsToPosition = accountsSnapshot.docs.filter((doc) => {
+      const account = doc.data();
+      return account.displayPreference === 'consolidated' && !account.summaryPosition;
+    });
+    
+    if (accountsToPosition.length === 0) {
+      return { success: true };
+    }
+    
+    const batch = writeBatch(db);
+    let position = startPosition;
+    
+    // Only process accounts that don't have summaryPosition set
+    accountsToPosition.forEach((doc) => {
+      batch.update(doc.ref, {
+        summaryPosition: {
+          sheetId: defaultSheetId,
+          sectionId: defaultSectionId,
+          position
+        },
+        updatedAt: serverTimestamp()
+      });
+      position++;
+    });
+
+    await batch.commit();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error initializing account summary positions:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+};
+
+// Get the next available position in a section (for account summaries)
+export const getNextPositionInSection = async (
+  userId: string,
+  sectionId: string
+): Promise<number> => {
+  try {
+    const assetsRef = collection(db, `users/${userId}/assets`);
+    const assetsQuery = query(assetsRef, where('sectionId', '==', sectionId));
+    const assetsSnapshot = await getDocs(assetsQuery);
+    
+    // Calculate the maximum position among existing assets in the section
+    let maxPosition = -1;
+    assetsSnapshot.docs.forEach((doc) => {
+      const asset = doc.data();
+      if (asset.position !== undefined && asset.position > maxPosition) {
+        maxPosition = asset.position;
+      }
+    });
+    
+    // Also check for existing account summaries in this section
+    const accountsRef = collection(db, `users/${userId}/accounts`);
+    const accountsSnapshot = await getDocs(accountsRef);
+    
+    accountsSnapshot.docs.forEach((doc) => {
+      const account = doc.data();
+      if (account.summaryPosition && 
+          account.summaryPosition.sectionId === sectionId) {
+        if (account.summaryPosition.position > maxPosition) {
+          maxPosition = account.summaryPosition.position;
+        }
+      }
+    });
+    
+    return maxPosition + 1;
+  } catch (error) {
+    console.error('Error getting next position in section:', error);
+    return 0; // Fallback to position 0
+  }
+};
+
+// Reorder multiple account summaries at once (for efficiency)
+export const reorderAccountSummaries = async (
+  userId: string,
+  updates: { 
+    accountId: string; 
+    sheetId: string; 
+    sectionId: string; 
+    position: number 
+  }[]
+): Promise<ApiResponse<void>> => {
+  try {
+    const batch = writeBatch(db);
+    
+    updates.forEach(({ accountId, sheetId, sectionId, position }) => {
+      const accountRef = doc(db, `users/${userId}/accounts`, accountId);
+      batch.update(accountRef, {
+        summaryPosition: {
+          sheetId,
+          sectionId,
+          position
+        },
+        updatedAt: serverTimestamp()
+      });
+    });
+
+    await batch.commit();
+    return { success: true };
+  } catch (error) {
+    console.error('Error reordering account summaries:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
 };

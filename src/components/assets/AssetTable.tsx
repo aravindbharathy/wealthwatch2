@@ -274,7 +274,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
     visibility: (isDragging ? 'hidden' : 'visible') as 'hidden' | 'visible',
   };
 
-  const totalReturnPercent = asset.costBasis && asset.costBasis > 0 ? 
+  const totalReturnPercent = asset.costBasis !== undefined && asset.costBasis > 0 ? 
     ((asset.currentValue - asset.costBasis) / asset.costBasis) * 100 : null;
   const dayChange = asset.performance?.dayChange || 0;
 
@@ -322,7 +322,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
 
       {/* Cost Basis */}
       <div className="text-right text-sm font-medium text-gray-900">
-        {asset.costBasis && asset.costBasis > 0 ? (
+        {asset.costBasis !== undefined && asset.costBasis > 0 ? (
           <CurrencyFormattedValue 
             amount={asset.costBasis} 
             fromCurrency={asset.currency}

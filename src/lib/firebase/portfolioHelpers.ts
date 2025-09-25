@@ -142,7 +142,7 @@ export const calculateSectionSummary = (
 } => {
   // For Plaid data, cost basis is not available at account level, so set to 0
   const totalInvested = isPlaidData ? 0 : assets.reduce((sum, asset) => {
-    return asset.costBasis && asset.costBasis > 0 ? sum + asset.costBasis : sum;
+    return asset.costBasis !== undefined && asset.costBasis > 0 ? sum + asset.costBasis : sum;
   }, 0);
   
   const totalValue = assets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
