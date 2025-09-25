@@ -191,7 +191,7 @@ export default function SectionItem({
           convertedValue += conversion.currentValue;
         }
         
-        const convertedReturn = convertedValue - convertedInvestedForIRR;
+        const convertedReturn = convertedReturnForIRR;
         const convertedReturnPercent = convertedInvestedForIRR > 0 ? (convertedReturnForIRR / convertedInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
@@ -223,7 +223,7 @@ export default function SectionItem({
           }
         });
         
-        const totalReturn = totalValue - totalInvested;
+        const totalReturn = totalReturnForIRR;
         const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({

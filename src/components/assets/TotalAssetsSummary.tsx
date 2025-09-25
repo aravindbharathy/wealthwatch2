@@ -89,7 +89,7 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
           convertedValue += conversion.currentValue;
         }
         
-        const convertedReturn = convertedValue - convertedInvestedForIRR;
+        const convertedReturn = convertedReturnForIRR;
         const convertedReturnPercent = convertedInvestedForIRR > 0 ? (convertedReturnForIRR / convertedInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
@@ -113,7 +113,7 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
         });
         
         const totalValue = allAssets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
-        const totalReturn = totalValue - totalInvestedForIRR;
+        const totalReturn = totalReturnForIRR;
         const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({

@@ -163,11 +163,11 @@ export const calculateSectionSummary = (
   // Use the IRR calculation only for assets with cost basis
   const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
   
-  // Total return includes all assets (for display purposes)
-  const totalReturn = totalValue - totalInvested;
+  // Total return should also only include assets with cost basis for consistency
+  const totalReturn = totalReturnForIRR;
   
   return {
-    totalInvested,
+    totalInvested: totalInvestedForIRR,
     totalValue,
     totalReturn,
     totalReturnPercent,

@@ -110,7 +110,7 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
           convertedValue += conversion.currentValue;
         }
         
-        const convertedReturn = convertedValue - convertedInvestedForIRR;
+        const convertedReturn = convertedReturnForIRR;
         const convertedReturnPercent = convertedInvestedForIRR > 0 ? (convertedReturnForIRR / convertedInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
@@ -133,7 +133,7 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
         });
         
         const totalValue = currentSheetAssets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
-        const totalReturn = totalValue - totalInvestedForIRR;
+        const totalReturn = totalReturnForIRR;
         const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
