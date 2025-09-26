@@ -41,6 +41,11 @@ export default function TotalInvestmentsSummary({ assetsBySection }: TotalInvest
             currencyGroups[currency] = { costBasis: 0, currentValue: 0 };
           }
           
+          // Debug logging
+          if (asset.name && asset.costBasis !== undefined) {
+            console.log(`Asset: ${asset.name}, costBasis: ${asset.costBasis}, currentValue: ${asset.currentValue}`);
+          }
+          
           if (asset.costBasis !== undefined && asset.costBasis > 0) {
             currencyGroups[currency].costBasis += asset.costBasis;
           }
@@ -91,6 +96,13 @@ export default function TotalInvestmentsSummary({ assetsBySection }: TotalInvest
         
         const convertedReturn = convertedReturnForIRR;
         const convertedReturnPercent = convertedInvestedForIRR > 0 ? (convertedReturnForIRR / convertedInvestedForIRR) * 100 : 0;
+        
+        // Debug logging
+        console.log(`TotalInvestmentsSummary calculation:
+          convertedInvestedForIRR: ${convertedInvestedForIRR}
+          convertedReturnForIRR: ${convertedReturnForIRR}
+          convertedValue: ${convertedValue}
+          convertedReturnPercent: ${convertedReturnPercent}%`);
         
         setConvertedTotals({
           totalInvested: convertedInvestedForIRR,
