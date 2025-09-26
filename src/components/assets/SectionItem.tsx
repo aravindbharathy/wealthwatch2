@@ -304,8 +304,8 @@ export default function SectionItem({
   return (
     <div 
       ref={isSectionEmpty ? setDroppableRef : undefined}
-      className={`relative transition-all duration-200 overflow-visible mb-2 ${
-        isOver && isSectionEmpty ? 'border-blue-400 bg-blue-50 shadow-md border' : ''
+      className={`relative transition-all duration-150 ease-out overflow-visible mb-2 ${
+        isOver && isSectionEmpty ? 'border-blue-400 bg-blue-50 shadow-md border-2 rounded-lg' : 'border-transparent border-2'
       }`}
     >
 

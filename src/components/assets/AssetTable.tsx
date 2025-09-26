@@ -415,14 +415,14 @@ const InterAssetDropZone: React.FC<InterAssetDropZoneProps> = ({ sectionId, targ
   return (
     <div
       ref={setNodeRef}
-      className={`transition-all duration-200 ease-in-out ${
+      className={`transition-all duration-150 ease-out ${
         isOver 
-          ? 'h-12 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 flex items-center justify-center' 
-          : 'h-0 bg-transparent'
+          ? 'h-10 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded flex items-center justify-center shadow-sm' 
+          : 'h-1 bg-transparent mx-2' // Keep minimal height to prevent layout shifts
       }`}
     >
       {isOver && (
-        <div className="text-blue-600 text-sm font-medium opacity-70">
+        <div className="text-blue-600 text-sm font-medium opacity-80">
           Drop asset here
         </div>
       )}

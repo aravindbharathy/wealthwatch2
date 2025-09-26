@@ -145,12 +145,12 @@ export default function SectionList({
       let sourceSectionId = '';
       let sourceIndex = -1;
       
-      // Use the actual database positions instead of array indices for source calculation
+      // Find source asset and its database position
       for (const [sectionId, assets] of Object.entries(assetsBySection)) {
         const asset = assets.find(asset => asset.id === active.id);
         if (asset) {
           sourceSectionId = sectionId;
-          sourceIndex = asset.position; // Use the actual database position, not array index
+          sourceIndex = asset.position; // Use database position for backend call
           break;
         }
       }
@@ -186,7 +186,7 @@ export default function SectionList({
           }
           
         } else {
-          // Fallback: try to find the asset by ID using actual database state
+          // Fallback: try to find the asset by ID using database position
           for (const [sectionId, assets] of Object.entries(assetsBySection)) {
             const asset = assets.find(asset => asset.id === over.id);
             if (asset) {
@@ -209,35 +209,47 @@ export default function SectionList({
             return;
           }
           
-          if (sourceSectionId === targetSectionId) {
-            // Within-section move - apply optimistic update immediately
-            const assets = [...newOptimisticAssets[sourceSectionId]];
-            const movedAsset = assets[sourceIndex];
-            
-            // Remove the asset from its current position
-            assets.splice(sourceIndex, 1);
-            
-            // Adjust targetIndex if we removed an item before the target position
-            const adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
-            
-            // Insert at the new position
-            assets.splice(adjustedTargetIndex, 0, movedAsset);
-            
-            newOptimisticAssets[sourceSectionId] = assets;
-          } else {
-            // Cross-section move - apply optimistic update
-            const sourceAssets = [...newOptimisticAssets[sourceSectionId]];
-            const targetAssets = [...(newOptimisticAssets[targetSectionId] || [])];
-            
-            // Remove from source
-            const [movedAsset] = sourceAssets.splice(sourceIndex, 1);
-            
-            // Add to target at the specified position
-            targetAssets.splice(targetIndex, 0, movedAsset);
-            
-            // Update both sections
-            newOptimisticAssets[sourceSectionId] = sourceAssets;
-            newOptimisticAssets[targetSectionId] = targetAssets;
+          // Convert database positions to array indices for optimistic updates
+          const sourceAssets = newOptimisticAssets[sourceSectionId] || [];
+          const targetAssets = newOptimisticAssets[targetSectionId] || [];
+          
+          // Find array indices from database positions
+          const sourceArrayIndex = sourceAssets.findIndex(asset => asset.position === sourceIndex);
+          const targetArrayIndex = targetAssets.findIndex(asset => asset.position >= targetIndex);
+          
+          if (sourceArrayIndex !== -1) {
+            if (sourceSectionId === targetSectionId) {
+              // Within-section move - apply optimistic update immediately
+              const assets = [...sourceAssets];
+              const movedAsset = assets[sourceArrayIndex];
+              
+              // Remove the asset from its current position
+              assets.splice(sourceArrayIndex, 1);
+              
+              // Calculate new array index for target position
+              const newTargetArrayIndex = targetArrayIndex === -1 ? assets.length : targetArrayIndex;
+              const adjustedTargetIndex = sourceArrayIndex < newTargetArrayIndex ? newTargetArrayIndex - 1 : newTargetArrayIndex;
+              
+              // Insert at the new position
+              assets.splice(adjustedTargetIndex, 0, movedAsset);
+              
+              newOptimisticAssets[sourceSectionId] = assets;
+            } else {
+              // Cross-section move - apply optimistic update
+              const newSourceAssets = [...sourceAssets];
+              const newTargetAssets = [...targetAssets];
+              
+              // Remove from source
+              const [movedAsset] = newSourceAssets.splice(sourceArrayIndex, 1);
+              
+              // Add to target at the specified position
+              const insertIndex = targetArrayIndex === -1 ? newTargetAssets.length : targetArrayIndex;
+              newTargetAssets.splice(insertIndex, 0, movedAsset);
+              
+              // Update both sections
+              newOptimisticAssets[sourceSectionId] = newSourceAssets;
+              newOptimisticAssets[targetSectionId] = newTargetAssets;
+            }
           }
           
           setOptimisticAssetsBySection(newOptimisticAssets);
