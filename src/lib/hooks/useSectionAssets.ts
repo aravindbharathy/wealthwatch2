@@ -104,7 +104,7 @@ export function useSectionAssets(sectionId: string, userId: string) {
         position: input.position !== undefined ? input.position : nextPosition,
         valueByDate: [],
         transactions: [],
-        totalReturn: input.currentValue - input.costBasis,
+        totalReturn: input.currentValue - (input.costBasis || 0),
         accountMapping: { isLinked: false },
         cashFlow: [],
         metadata: {
@@ -113,7 +113,7 @@ export function useSectionAssets(sectionId: string, userId: string) {
           ...input.metadata,
         },
         performance: {
-          totalReturnPercent: input.costBasis > 0 ? 
+          totalReturnPercent: input.costBasis !== undefined && input.costBasis > 0 ? 
             ((input.currentValue - input.costBasis) / input.costBasis) * 100 : 0,
         },
         createdAt: Timestamp.now(),

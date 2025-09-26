@@ -156,7 +156,7 @@ export const validateCreateAssetInput = (data: CreateAssetInput, options: Valida
     errors.push('Current value cannot be negative');
   }
 
-  if (data.costBasis < 0) {
+  if (data.costBasis !== undefined && data.costBasis < 0) {
     errors.push('Cost basis cannot be negative');
   }
 
