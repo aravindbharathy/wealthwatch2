@@ -162,28 +162,6 @@ export default function TotalAssetsSummary({ assetsBySection }: TotalAssetsSumma
             }).format(totalValue)}
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-sm text-gray-600 mb-1">
-            Total invested: <span className="font-semibold">
-              {new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: preferredCurrency,
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(totalInvested)}
-            </span>
-          </div>
-          <div className="text-sm text-gray-600">
-            Total return: <span className={`font-semibold ${totalReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: preferredCurrency,
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(totalReturn)} ({formatPercent(totalReturnPercent)})
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
