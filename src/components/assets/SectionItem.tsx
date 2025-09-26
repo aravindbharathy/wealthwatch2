@@ -170,13 +170,12 @@ export default function SectionItem({
           convertedValue += assetConvertedValue;
         }
         
-        const convertedReturn = convertedReturnForIRR;
         const convertedReturnPercent = convertedInvestedForIRR > 0 ? (convertedReturnForIRR / convertedInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
           totalInvested: convertedInvestedForIRR,
           totalValue: convertedValue,
-          totalReturn: convertedReturn,
+          totalReturn: convertedReturnForIRR,
           totalReturnPercent: convertedReturnPercent,
         });
       } catch (error) {
@@ -202,13 +201,12 @@ export default function SectionItem({
           }
         });
         
-        const totalReturn = totalReturnForIRR;
         const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
           totalInvested: totalInvestedForIRR,
           totalValue,
-          totalReturn,
+          totalReturn: totalReturnForIRR,
           totalReturnPercent,
         });
       }

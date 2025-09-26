@@ -89,13 +89,12 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
           convertedValue += assetConvertedValue;
         }
         
-        const convertedReturn = convertedReturnForIRR;
         const convertedReturnPercent = convertedInvestedForIRR > 0 ? (convertedReturnForIRR / convertedInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
           totalInvested: convertedInvestedForIRR,
           totalValue: convertedValue,
-          totalReturn: convertedReturn,
+          totalReturn: convertedReturnForIRR,
           totalReturnPercent: convertedReturnPercent,
         });
       } catch (error) {
@@ -112,13 +111,12 @@ export default function SheetInsights({ currentSheetAssets, loading, sheetName }
         });
         
         const totalValue = currentSheetAssets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
-        const totalReturn = totalReturnForIRR;
         const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
           totalInvested: totalInvestedForIRR,
           totalValue,
-          totalReturn,
+          totalReturn: totalReturnForIRR,
           totalReturnPercent,
         });
       }

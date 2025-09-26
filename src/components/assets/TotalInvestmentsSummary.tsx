@@ -39,10 +39,6 @@ export default function TotalInvestmentsSummary({ assetsBySection }: TotalInvest
         
         // Process each asset individually for IRR calculation
         for (const asset of allAssets) {
-          // Debug logging
-          if (asset.name && asset.costBasis !== undefined) {
-            console.log(`Asset: ${asset.name}, costBasis: ${asset.costBasis}, currentValue: ${asset.currentValue}`);
-          }
           
           // Only calculate IRR for assets with cost basis
           if (asset.costBasis !== undefined && asset.costBasis > 0) {
@@ -73,20 +69,12 @@ export default function TotalInvestmentsSummary({ assetsBySection }: TotalInvest
           convertedValue += assetConvertedValue;
         }
         
-        const convertedReturn = convertedReturnForIRR;
         const convertedReturnPercent = convertedInvestedForIRR > 0 ? (convertedReturnForIRR / convertedInvestedForIRR) * 100 : 0;
-        
-        // Debug logging
-        console.log(`TotalInvestmentsSummary calculation:
-          convertedInvestedForIRR: ${convertedInvestedForIRR}
-          convertedReturnForIRR: ${convertedReturnForIRR}
-          convertedValue: ${convertedValue}
-          convertedReturnPercent: ${convertedReturnPercent}%`);
         
         setConvertedTotals({
           totalInvested: convertedInvestedForIRR,
           totalValue: convertedValue,
-          totalReturn: convertedReturn,
+          totalReturn: convertedReturnForIRR,
           totalReturnPercent: convertedReturnPercent,
         });
       } catch (error) {
@@ -104,13 +92,12 @@ export default function TotalInvestmentsSummary({ assetsBySection }: TotalInvest
         });
         
         const totalValue = allAssets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
-        const totalReturn = totalReturnForIRR;
         const totalReturnPercent = totalInvestedForIRR > 0 ? (totalReturnForIRR / totalInvestedForIRR) * 100 : 0;
         
         setConvertedTotals({
           totalInvested: totalInvestedForIRR,
           totalValue,
-          totalReturn,
+          totalReturn: totalReturnForIRR,
           totalReturnPercent,
         });
       }
