@@ -129,66 +129,45 @@ export default function SectionItem({
   useEffect(() => {
     const convertTotals = async () => {
       try {
-        // Group assets by currency to minimize API calls
-        const currencyGroups: { [currency: string]: { costBasis: number; currentValue: number } } = {};
+        // Calculate IRR at individual asset level first, then convert currencies
+        let convertedReturnForIRR = 0;
+        let convertedInvestedForIRR = 0;
+        let convertedValue = 0;
         
+        // Process each asset individually for IRR calculation
         for (const asset of assets) {
           // Skip undefined or invalid assets
           if (!asset || !asset.id) {
             continue;
           }
           
-          const currency = asset.currency || 'USD';
-          if (!currencyGroups[currency]) {
-            currencyGroups[currency] = { costBasis: 0, currentValue: 0 };
+          // Only calculate IRR for assets with cost basis
+          if (asset.costBasis !== undefined && asset.costBasis > 0) {
+            // Convert cost basis to preferred currency
+            let convertedCostBasis = asset.costBasis;
+            if (asset.currency !== preferredCurrency) {
+              const costBasisConversion = await convertCurrency(asset.currency || 'USD', preferredCurrency, asset.costBasis);
+              convertedCostBasis = costBasisConversion.convertedAmount || 0;
+            }
+            
+            // Convert current value to preferred currency
+            let convertedCurrentValue = asset.currentValue || 0;
+            if (asset.currency !== preferredCurrency) {
+              const currentValueConversion = await convertCurrency(asset.currency || 'USD', preferredCurrency, asset.currentValue || 0);
+              convertedCurrentValue = currentValueConversion.convertedAmount || 0;
+            }
+            
+            convertedInvestedForIRR += convertedCostBasis;
+            convertedReturnForIRR += convertedCurrentValue - convertedCostBasis;
           }
           
-          if (asset.costBasis !== undefined && asset.costBasis > 0) {
-            currencyGroups[currency].costBasis += asset.costBasis;
+          // Convert current value for total value calculation (all assets)
+          let assetConvertedValue = asset.currentValue || 0;
+          if (asset.currency !== preferredCurrency) {
+            const currentValueConversion = await convertCurrency(asset.currency || 'USD', preferredCurrency, asset.currentValue || 0);
+            assetConvertedValue = currentValueConversion.convertedAmount || 0;
           }
-          currencyGroups[currency].currentValue += asset.currentValue || 0;
-        }
-        
-        let convertedInvested = 0;
-        let convertedValue = 0;
-        
-        // Convert each currency group efficiently
-        const conversionPromises = Object.entries(currencyGroups).map(async ([currency, amounts]) => {
-          if (currency === preferredCurrency) {
-            // No conversion needed
-            return {
-              costBasis: amounts.costBasis,
-              currentValue: amounts.currentValue
-            };
-          } else {
-            // Use convertCurrency for efficient conversion with caching
-            const [costBasisConversion, currentValueConversion] = await Promise.all([
-              amounts.costBasis > 0 ? convertCurrency(currency, preferredCurrency, amounts.costBasis) : Promise.resolve({ convertedAmount: 0 }),
-              convertCurrency(currency, preferredCurrency, amounts.currentValue)
-            ]);
-            
-            return {
-              costBasis: costBasisConversion.convertedAmount || 0,
-              currentValue: currentValueConversion.convertedAmount || 0
-            };
-          }
-        });
-        
-        const conversions = await Promise.all(conversionPromises);
-        
-        // Calculate IRR only for assets with cost basis (separate from total value)
-        let convertedReturnForIRR = 0;
-        let convertedInvestedForIRR = 0;
-        
-        for (const conversion of conversions) {
-          convertedInvestedForIRR += conversion.costBasis;
-          // For IRR calculation, only include return from assets that have cost basis
-          convertedReturnForIRR += conversion.costBasis > 0 ? (conversion.currentValue - conversion.costBasis) : 0;
-        }
-        
-        // Sum up all conversions for total value (includes all assets)
-        for (const conversion of conversions) {
-          convertedValue += conversion.currentValue;
+          convertedValue += assetConvertedValue;
         }
         
         const convertedReturn = convertedReturnForIRR;
