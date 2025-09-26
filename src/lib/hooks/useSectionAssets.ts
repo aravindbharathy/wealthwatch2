@@ -82,12 +82,8 @@ export function useSectionAssets(sectionId: string, userId: string) {
   // Helper function to update section summary
   const updateSectionSummary = async (assets: Asset[]) => {
     try {
-      // Check if this is Plaid data by looking for Plaid-specific account mapping
-      const isPlaidData = assets.some(asset => 
-        asset.accountMapping?.isLinked === true
-      );
-      
-      const summary = calculateSectionSummary(assets, isPlaidData);
+      // Calculate summary - the function will automatically handle cost basis > 0 condition
+      const summary = calculateSectionSummary(assets);
       const sectionRef = doc(db, `users/${userId}/sections`, sectionId);
       await updateDoc(sectionRef, {
         summary,

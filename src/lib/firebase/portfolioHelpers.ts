@@ -132,8 +132,7 @@ export const calculateAssetAllocation = (
 // ============================================================================
 
 export const calculateSectionSummary = (
-  assets: Asset[], 
-  isPlaidData: boolean = false
+  assets: Asset[]
 ): {
   totalInvested: number;
   totalValue: number;
@@ -185,15 +184,8 @@ export const recalculateSectionSummary = async (
       ...doc.data(),
     })) as Asset[];
     
-    // Check if this is Plaid data by looking for Plaid-specific metadata or account summaries
-    const isPlaidData = assets.some(asset => 
-      asset.accountMapping?.isLinked === true ||
-      asset.metadata?.customFields?.provider === 'plaid' ||
-      asset.metadata?.customFields?.isAccountSummary === true
-    );
-    
-    // Calculate new summary (cost basis will be 0 for Plaid data)
-    const summary = calculateSectionSummary(assets, isPlaidData);
+    // Calculate new summary - the function will automatically handle cost basis > 0 condition
+    const summary = calculateSectionSummary(assets);
     
     // Update section with new summary
     const sectionRef = doc(db, `users/${userId}/sections`, sectionId);
