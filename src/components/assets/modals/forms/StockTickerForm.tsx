@@ -254,7 +254,8 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
 
       const assetData: CreateAssetInput = {
         name: selectedStock.name,
-        type: 'stock_ticker',
+        type: selectedStock.type || 'equity', // Use mapped type from Marketstack
+        subType: selectedStock.subType || null, // Set to null if undefined
         symbol: selectedStock.symbol,
         exchange: selectedStock.exchange,
         currency: selectedStock.native_currency, // Use the native currency of the stock
@@ -274,6 +275,9 @@ export default function StockTickerForm({ onSubmit, onBack, loading = false }: S
             industry: selectedStock.industry || '',
             nativeCurrency: selectedStock.native_currency,
             conversionRate: selectedStock.conversion_rate || 1,
+            marketstackAssetType: selectedStock.asset_type || '',
+            marketstackType: selectedStock.type || '',
+            marketstackSubType: selectedStock.subType || '',
           },
         },
       };

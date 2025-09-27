@@ -110,7 +110,8 @@ export default function BanksBrokeragesForm({ onSubmit, onBack, loading = false,
     }
 
     const assetData: CreateAssetInput = {
-      type: 'banks_brokerages',
+      type: 'account',
+      subType: 'plaid',
       name: formData.name.trim(),
       currentValue: formData.currentValue,
       currency: formData.currency,

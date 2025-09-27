@@ -1,4 +1,4 @@
-import { Account, Asset } from '../firebase/types';
+import { Account, Asset, AssetType, AssetSubType } from '../firebase/types';
 import { Timestamp } from 'firebase/firestore';
 
 // Plaid API response types
@@ -167,7 +167,8 @@ export class PlaidService {
     accountId: string, 
     sectionId: string
   ): Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> {
-    const assetType = this.determineAssetType(security);
+    const assetType = this.mapPlaidSecurityTypeToAssetType(security);
+    const assetSubType = this.mapPlaidSecuritySubtypeToAssetSubtype(security);
     const totalReturn = holding.institution_value - (holding.cost_basis * holding.quantity);
     const totalReturnPercent = holding.cost_basis > 0 
       ? (totalReturn / (holding.cost_basis * holding.quantity)) * 100 
@@ -175,8 +176,8 @@ export class PlaidService {
     
     return {
       name: security.name,
-      type: assetType,
-      subType: security.subtype,
+      type: assetType, // Use the mapped asset type
+      subType: assetSubType || null, // Use the mapped asset subtype
       symbol: security.ticker_symbol,
       exchange: security.market_identifier_code,
       currency: holding.iso_currency_code,
@@ -206,6 +207,10 @@ export class PlaidService {
           sedol: security.sedol,
           isCashEquivalent: security.is_cash_equivalent,
           institutionSecurityId: security.institution_security_id,
+          plaidType: security.type,
+          plaidSubtype: security.subtype,
+          mappedType: assetType, // Our mapped type
+          mappedSubType: assetSubType || null, // Our mapped subtype
         },
       },
       performance: {
@@ -231,28 +236,79 @@ export class PlaidService {
   }
   
   /**
-   * Determine asset type based on security data
+   * Map Plaid security type to our AssetType
    */
-  private static determineAssetType(security: PlaidSecurity): Asset['type'] {
-    if (security.is_cash_equivalent) {
-      return 'cash';
-    }
-    
+  private static mapPlaidSecurityTypeToAssetType(security: PlaidSecurity): AssetType {
+    // First check the actual security type
     switch (security.type) {
       case 'equity':
-        return 'stock_ticker';
+        return 'equity';
       case 'cryptocurrency':
-        return 'crypto_ticker';
+        return 'cryptocurrency';
       case 'etf':
+        return 'etf';
       case 'mutual fund':
-        return 'stock_ticker';
+        return 'mutual fund';
       case 'fixed income':
-        return 'generic_asset';
+        return 'fixed income';
       case 'derivative':
-        return 'generic_asset';
+        return 'derivative';
+      case 'cash':
+        return 'cash';
       default:
-        return 'generic_asset';
+        // Only use is_cash_equivalent as a fallback for unknown types
+        if (security.is_cash_equivalent) {
+          return 'cash';
+        }
+        return 'other';
     }
+  }
+
+  /**
+   * Map Plaid security subtype to our AssetSubType
+   */
+  private static mapPlaidSecuritySubtypeToAssetSubtype(security: PlaidSecurity): AssetSubType | undefined {
+    if (!security.subtype) {
+      return undefined;
+    }
+
+    // Direct mapping for most subtypes
+    const subtypeMap: Record<string, AssetSubType> = {
+      'common stock': 'common stock',
+      'preferred stock': 'preferred equity',
+      'etf': 'etf',
+      'mutual fund': 'mutual fund',
+      'option': 'option',
+      'warrant': 'warrant',
+      'bond': 'bond',
+      'bill': 'bill',
+      'note': 'note',
+      'cash': 'cash',
+      'cryptocurrency': 'cryptocurrency',
+      'depositary receipt': 'depositary receipt',
+      'real estate investment trust': 'real estate investment trust',
+      'unit': 'unit',
+      'convertible bond': 'convertible bond',
+      'convertible equity': 'convertible equity',
+      'preferred convertible': 'preferred convertible',
+      'asset backed security': 'asset backed security',
+      'mortgage backed security': 'mortgage backed security',
+      'municipal bond': 'municipal bond',
+      'treasury inflation protected securities': 'treasury inflation protected securities',
+      'cash management bill': 'cash management bill',
+      'medium term note': 'medium term note',
+      'float rating note': 'float rating note',
+      'bond with warrants': 'bond with warrants',
+      'depositary receipt on debt': 'depositary receipt on debt',
+      'fund of funds': 'fund of funds',
+      'hedge fund': 'hedge fund',
+      'private equity fund': 'private equity fund',
+      'limited partnership unit': 'limited partnership unit',
+      'structured equity product': 'structured equity product',
+      'money market debt': 'money market debt',
+    };
+
+    return subtypeMap[security.subtype] || 'other';
   }
   
   /**

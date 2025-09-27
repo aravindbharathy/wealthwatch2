@@ -31,7 +31,7 @@ export const calculateNetWorth = (
   const totalAssets = assets.reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
   const totalDebts = debts.reduce((sum, debt) => sum + debt.currentBalance, 0);
   const liquidAssets = assets
-    .filter(asset => asset.type === 'cash' || asset.type === 'stock_ticker' || asset.type === 'crypto_ticker')
+    .filter(asset => asset.type === 'cash' || asset.type === 'account' || asset.type === 'equity' || asset.type === 'etf' || asset.type === 'mutual fund' || asset.type === 'fixed income' || asset.type === 'derivative' || asset.type === 'cryptocurrency')
     .reduce((sum, asset) => sum + (asset.currentValue || 0), 0);
 
   return {
@@ -84,24 +84,27 @@ export const calculateAssetAllocation = (
     const percentage = ((asset.currentValue || 0) / totalValue) * 100;
     
     switch (asset.type) {
-      case 'stock_ticker':
+      case 'account':
+        byType.cash += percentage; // Accounts are treated as cash-like assets
+        break;
+      case 'equity':
+      case 'etf':
+      case 'mutual fund':
+      case 'fixed income':
+      case 'derivative':
         byType.stocks += percentage;
         break;
-      case 'crypto_ticker':
-      case 'crypto_exchange_wallet':
+      case 'cryptocurrency':
         byType.crypto += percentage;
         break;
       case 'cash':
         byType.cash += percentage;
         break;
-      case 'home':
-        byType.realEstate += percentage;
+      case 'loan':
+        byType.other += percentage;
         break;
-      case 'car':
-        byType.vehicles += percentage;
-        break;
-      case 'precious_metals':
-        byType.preciousMetals += percentage;
+      case 'other':
+        byType.other += percentage;
         break;
       default:
         byType.other += percentage;

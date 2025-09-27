@@ -75,16 +75,46 @@ export default function AssetTypeSelector({ onSelectType, onClose }: AssetTypeSe
 
   const assetOptions = [
     {
-      type: 'banks_brokerages' as Asset['type'],
+      type: 'account' as Asset['type'],
       label: 'Banks & Brokerages',
       icon: ModernIcons.banks,
       description: 'Bank accounts, brokerage accounts, and investment accounts'
     },
     {
-      type: 'stock_ticker' as Asset['type'],
-      label: 'Stock Tickers',
+      type: 'equity' as Asset['type'],
+      label: 'Stocks & Equity',
       icon: ModernIcons.stock,
-      description: 'Individual stocks, ETFs, and mutual funds'
+      description: 'Individual stocks and equity securities'
+    },
+    {
+      type: 'etf' as Asset['type'],
+      label: 'ETFs',
+      icon: ModernIcons.portfolio,
+      description: 'Exchange-traded funds'
+    },
+    {
+      type: 'mutual fund' as Asset['type'],
+      label: 'Mutual Funds',
+      icon: ModernIcons.portfolio,
+      description: 'Mutual funds and investment funds'
+    },
+    {
+      type: 'fixed income' as Asset['type'],
+      label: 'Fixed Income',
+      icon: ModernIcons.banks,
+      description: 'Bonds and fixed income securities'
+    },
+    {
+      type: 'derivative' as Asset['type'],
+      label: 'Derivatives',
+      icon: ModernIcons.ai,
+      description: 'Options, warrants, and other derivatives'
+    },
+    {
+      type: 'cryptocurrency' as Asset['type'],
+      label: 'Cryptocurrency',
+      icon: ModernIcons.crypto,
+      description: 'Digital currencies and crypto assets'
     },
     {
       type: 'cash' as Asset['type'],
@@ -93,38 +123,14 @@ export default function AssetTypeSelector({ onSelectType, onClose }: AssetTypeSe
       description: 'Cash and cash equivalents'
     },
     {
-      type: 'crypto_ticker' as Asset['type'],
-      label: 'Crypto Tickers',
-      icon: ModernIcons.crypto,
-      description: 'Individual cryptocurrencies'
+      type: 'loan' as Asset['type'],
+      label: 'Loans',
+      icon: ModernIcons.banks,
+      description: 'Loans and loan receivables'
     },
     {
-      type: 'crypto_exchange_wallet' as Asset['type'],
-      label: 'Crypto Exchanges & Wallets',
-      icon: ModernIcons.wallet,
-      description: 'Crypto exchange accounts and wallets'
-    },
-    {
-      type: 'home' as Asset['type'],
-      label: 'Homes',
-      icon: ModernIcons.home,
-      description: 'Real estate properties'
-    },
-    {
-      type: 'car' as Asset['type'],
-      label: 'Cars',
-      icon: ModernIcons.car,
-      description: 'Vehicles and automobiles'
-    },
-    {
-      type: 'precious_metals' as Asset['type'],
-      label: 'Precious Metals',
-      icon: ModernIcons.metals,
-      description: 'Gold, silver, and other precious metals'
-    },
-    {
-      type: 'generic_asset' as Asset['type'],
-      label: 'Manual Assets',
+      type: 'other' as Asset['type'],
+      label: 'Other Assets',
       icon: ModernIcons.manual,
       description: 'Any other asset type'
     }
@@ -147,9 +153,9 @@ export default function AssetTypeSelector({ onSelectType, onClose }: AssetTypeSe
 
       {/* Modern Grid Layout */}
       <div className="grid grid-cols-2 gap-4">
-        {assetOptions.map((option) => (
+        {assetOptions.map((option, index) => (
           <button
-            key={option.type}
+            key={`${option.type}-${index}`}
             onClick={() => handleTypeSelect(option.type)}
             className="group p-6 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >

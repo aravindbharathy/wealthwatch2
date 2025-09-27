@@ -2,6 +2,7 @@
 // Based on the Marketstack API documentation
 
 import axios, { AxiosResponse } from 'axios';
+import { AssetType, AssetSubType } from './firebase/types';
 
 // Use local API routes to avoid CORS issues
 const BASE_URL = '/api/marketstack';
@@ -41,6 +42,117 @@ const EXCHANGE_CURRENCY_MAP: Record<string, string> = {
 // Function to get currency for an exchange
 function getExchangeCurrency(exchangeCode: string): string {
   return EXCHANGE_CURRENCY_MAP[exchangeCode] || 'USD';
+}
+
+// Function to map Marketstack asset_type to our AssetType
+export function mapMarketstackAssetTypeToAssetType(assetType: string): AssetType {
+  const typeMap: Record<string, AssetType> = {
+    'stock': 'equity',
+    'equity': 'equity',
+    'etf': 'etf',
+    'mutual_fund': 'mutual fund',
+    'bond': 'fixed income',
+    'fixed_income': 'fixed income',
+    'crypto': 'cryptocurrency',
+    'cryptocurrency': 'cryptocurrency',
+    'derivative': 'derivative',
+    'option': 'derivative',
+    'warrant': 'derivative',
+    'cash': 'cash',
+    'currency': 'cash',
+    'commodity': 'other',
+    'other': 'other',
+  };
+
+  return typeMap[assetType.toLowerCase()] || 'other';
+}
+
+// Function to determine AssetSubType based on Marketstack data
+export function determineAssetSubTypeFromMarketstack(
+  assetType: string, 
+  symbol: string, 
+  name: string
+): AssetSubType | undefined {
+  const lowerAssetType = assetType.toLowerCase();
+  const lowerName = name.toLowerCase();
+  const lowerSymbol = symbol.toLowerCase();
+
+  // Direct mappings based on asset type
+  if (lowerAssetType === 'stock' || lowerAssetType === 'equity') {
+    // Check for preferred stock indicators
+    if (lowerName.includes('preferred') || lowerSymbol.includes('p') || lowerSymbol.includes('pr')) {
+      return 'preferred equity';
+    }
+    // Check for depositary receipts
+    if (lowerName.includes('depositary receipt') || lowerName.includes('adr') || lowerName.includes('gdr')) {
+      return 'depositary receipt';
+    }
+    // Default to common stock
+    return 'common stock';
+  }
+
+  if (lowerAssetType === 'etf') {
+    return 'etf';
+  }
+
+  if (lowerAssetType === 'mutual_fund') {
+    return 'mutual fund';
+  }
+
+  if (lowerAssetType === 'bond' || lowerAssetType === 'fixed_income') {
+    // Check for specific bond types
+    if (lowerName.includes('treasury') && lowerName.includes('inflation')) {
+      return 'treasury inflation protected securities';
+    }
+    if (lowerName.includes('municipal')) {
+      return 'municipal bond';
+    }
+    if (lowerName.includes('mortgage')) {
+      return 'mortgage backed security';
+    }
+    if (lowerName.includes('asset backed')) {
+      return 'asset backed security';
+    }
+    if (lowerName.includes('convertible')) {
+      return 'convertible bond';
+    }
+    if (lowerName.includes('bill')) {
+      return 'bill';
+    }
+    if (lowerName.includes('note')) {
+      return 'note';
+    }
+    // Default to bond
+    return 'bond';
+  }
+
+  if (lowerAssetType === 'crypto' || lowerAssetType === 'cryptocurrency') {
+    return 'cryptocurrency';
+  }
+
+  if (lowerAssetType === 'option') {
+    return 'option';
+  }
+
+  if (lowerAssetType === 'warrant') {
+    return 'warrant';
+  }
+
+  if (lowerAssetType === 'cash' || lowerAssetType === 'currency') {
+    return 'cash';
+  }
+
+  // Check for REITs
+  if (lowerName.includes('reit') || lowerName.includes('real estate investment trust')) {
+    return 'real estate investment trust';
+  }
+
+  // Check for units
+  if (lowerName.includes('unit') || lowerName.includes('lp')) {
+    return 'unit';
+  }
+
+  return undefined; // Let the caller decide what to do with undefined
 }
 
 // Type definitions for Marketstack API responses
@@ -185,6 +297,9 @@ export interface StockSearchResult {
   market_cap?: number;
   sector?: string;
   industry?: string;
+  asset_type?: string; // From Marketstack API
+  type?: AssetType; // Mapped to our AssetType
+  subType?: AssetSubType; // Mapped to our AssetSubType
 }
 
 // Search parameters interface
@@ -397,9 +512,18 @@ export async function getStockWithPrice(symbol: string): Promise<StockSearchResu
       }
     }
     
+    // Map asset type and subtype
+    const assetType = priceData.asset_type || '';
+    const mappedType = mapMarketstackAssetTypeToAssetType(assetType);
+    const mappedSubType = determineAssetSubTypeFromMarketstack(
+      assetType, 
+      priceData.symbol, 
+      priceData.name || ''
+    );
+
     return {
       symbol: priceData.symbol,
-      name: priceData.name || '',
+      name: priceData.name || priceData.symbol, // Fallback to symbol if name is empty
       exchange: priceData.exchange || '',
       exchange_code: priceData.exchange_code || '',
       country: '', // We'll get this from the search results instead
@@ -410,6 +534,9 @@ export async function getStockWithPrice(symbol: string): Promise<StockSearchResu
       conversion_rate: conversionRate,
       sector: '',
       industry: '',
+      asset_type: assetType,
+      type: mappedType,
+      subType: mappedSubType,
     };
   } catch (error) {
     console.error('Error fetching stock with price:', error);

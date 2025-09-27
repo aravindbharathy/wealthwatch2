@@ -71,7 +71,7 @@ export default function CryptoExchangeForm({ onSubmit, onBack, loading = false }
     try {
       const assetData: CreateAssetInput = {
         name: formData.name,
-        type: 'crypto_exchange_wallet',
+        type: 'cryptocurrency',
         exchange: formData.exchange,
         currency: formData.currency,
         quantity: 1, // Exchange accounts are always quantity 1

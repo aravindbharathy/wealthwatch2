@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { CreateAssetInput } from '@/lib/firebase/types';
+import { CreateAssetInput, AssetType, AssetSubType } from '@/lib/firebase/types';
 import CurrencyInput from '@/components/CurrencyInput';
 
 interface ManualAssetFormProps {
@@ -10,9 +10,23 @@ interface ManualAssetFormProps {
   loading?: boolean;
 }
 
+// Asset type options for manual assets
+const ASSET_TYPE_OPTIONS: { value: AssetType; label: string; subtypes?: AssetSubType[] }[] = [
+  { value: 'cash', label: 'Cash', subtypes: ['cash'] },
+  { value: 'equity', label: 'Equity', subtypes: ['common stock', 'preferred equity', 'depositary receipt'] },
+  { value: 'etf', label: 'ETF', subtypes: ['etf'] },
+  { value: 'mutual fund', label: 'Mutual Fund', subtypes: ['mutual fund', 'fund of funds', 'hedge fund', 'private equity fund'] },
+  { value: 'fixed income', label: 'Fixed Income', subtypes: ['bond', 'bill', 'note', 'municipal bond', 'treasury inflation protected securities'] },
+  { value: 'derivative', label: 'Derivative', subtypes: ['option', 'warrant', 'convertible bond', 'convertible equity'] },
+  { value: 'cryptocurrency', label: 'Cryptocurrency', subtypes: ['cryptocurrency'] },
+  { value: 'other', label: 'Other', subtypes: ['other'] },
+];
+
 export default function ManualAssetForm({ onSubmit, onBack, loading = false }: ManualAssetFormProps) {
   const [formData, setFormData] = useState({
     name: '',
+    type: 'other' as AssetType,
+    subType: undefined as AssetSubType | undefined,
     currentValue: 0,
     currency: 'USD',
     category: '',
@@ -34,6 +48,14 @@ export default function ManualAssetForm({ onSubmit, onBack, loading = false }: M
         [field]: '',
       }));
     }
+  };
+
+  const handleTypeChange = (type: AssetType) => {
+    setFormData(prev => ({
+      ...prev,
+      type,
+      subType: undefined, // Reset subtype when type changes
+    }));
   };
 
   const handleValueChange = (value: number, currency: string) => {
@@ -72,7 +94,8 @@ export default function ManualAssetForm({ onSubmit, onBack, loading = false }: M
 
       const assetData: CreateAssetInput = {
         name: formData.name,
-        type: 'generic_asset',
+        type: formData.type,
+        subType: formData.subType || null, // Set to null if undefined
         currency: formData.currency,
         quantity: 1, // Manual assets are typically quantity 1
         currentPrice: formData.currentValue,
@@ -84,6 +107,7 @@ export default function ManualAssetForm({ onSubmit, onBack, loading = false }: M
           tags: tagArray,
           customFields: {
             category: formData.category,
+            isManualAsset: true,
           },
         },
       };
@@ -132,6 +156,47 @@ export default function ManualAssetForm({ onSubmit, onBack, loading = false }: M
             <p className="mt-1 text-sm text-red-600">{errors.name}</p>
           )}
         </div>
+
+        {/* Asset Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Asset Type *
+          </label>
+          <select
+            value={formData.type}
+            onChange={(e) => handleTypeChange(e.target.value as AssetType)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+          >
+            {ASSET_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Asset Subtype */}
+        {ASSET_TYPE_OPTIONS.find(opt => opt.value === formData.type)?.subtypes && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Asset Subtype
+            </label>
+            <select
+              value={formData.subType || ''}
+              onChange={(e) => handleInputChange('subType', e.target.value || undefined)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+            >
+              <option value="">Select subtype (optional)</option>
+              {ASSET_TYPE_OPTIONS
+                .find(opt => opt.value === formData.type)
+                ?.subtypes?.map((subtype) => (
+                  <option key={subtype} value={subtype}>
+                    {subtype}
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
 
         {/* Current Value */}
         <div>

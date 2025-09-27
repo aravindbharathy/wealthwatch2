@@ -85,7 +85,7 @@ export default function CryptoForm({ onSubmit, onBack, loading = false }: Crypto
 
       const assetData: CreateAssetInput = {
         name: formData.name,
-        type: 'crypto_ticker',
+        type: 'cryptocurrency',
         symbol: formData.symbol.toUpperCase(),
         exchange: formData.exchange,
         currency: 'USD', // Crypto values are typically tracked in USD

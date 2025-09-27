@@ -22,10 +22,29 @@ export interface AssetTypeConfig {
 }
 
 export const ASSET_TYPES: Record<Asset['type'], AssetTypeConfig> = {
-  stock_ticker: {
-    type: 'stock_ticker',
-    label: 'Stock Tickers',
-    description: 'Individual stocks, ETFs, and mutual funds',
+  account: {
+    type: 'account',
+    label: 'Connected Accounts',
+    description: 'Bank and brokerage accounts connected via Plaid',
+    icon: '🔗',
+    color: 'blue',
+    requiresSymbol: false,
+    requiresExchange: false,
+    hasPriceUpdates: false,
+    formComponent: 'BanksBrokeragesForm',
+    category: 'financial',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD'],
+    customFields: ['institution', 'providerAccountId', 'mask'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'institution', 'providerAccountId'],
+      optionalFields: ['officialName', 'mask', 'description']
+    }
+  },
+  equity: {
+    type: 'equity',
+    label: 'Equity',
+    description: 'Individual stocks and equity securities',
     icon: '🐂',
     color: 'blue',
     requiresSymbol: true,
@@ -39,6 +58,120 @@ export const ASSET_TYPES: Record<Asset['type'], AssetTypeConfig> = {
       minValue: 0,
       requiredFields: ['name', 'symbol', 'exchange', 'quantity', 'costBasis'],
       optionalFields: ['currentPrice', 'sector', 'industry']
+    }
+  },
+  etf: {
+    type: 'etf',
+    label: 'ETF',
+    description: 'Exchange-traded funds',
+    icon: '📊',
+    color: 'blue',
+    requiresSymbol: true,
+    requiresExchange: true,
+    hasPriceUpdates: true,
+    formComponent: 'StockTickerForm',
+    category: 'financial',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'],
+    customFields: ['sector', 'industry', 'marketCap'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'symbol', 'exchange', 'quantity', 'costBasis'],
+      optionalFields: ['currentPrice', 'sector', 'industry']
+    }
+  },
+  'mutual fund': {
+    type: 'mutual fund',
+    label: 'Mutual Fund',
+    description: 'Mutual funds and investment funds',
+    icon: '📈',
+    color: 'blue',
+    requiresSymbol: true,
+    requiresExchange: true,
+    hasPriceUpdates: true,
+    formComponent: 'StockTickerForm',
+    category: 'financial',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'],
+    customFields: ['sector', 'industry', 'marketCap'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'symbol', 'exchange', 'quantity', 'costBasis'],
+      optionalFields: ['currentPrice', 'sector', 'industry']
+    }
+  },
+  'fixed income': {
+    type: 'fixed income',
+    label: 'Fixed Income',
+    description: 'Bonds and fixed income securities',
+    icon: '🏛️',
+    color: 'green',
+    requiresSymbol: true,
+    requiresExchange: true,
+    hasPriceUpdates: true,
+    formComponent: 'StockTickerForm',
+    category: 'financial',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'],
+    customFields: ['sector', 'industry', 'maturity'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'symbol', 'exchange', 'quantity', 'costBasis'],
+      optionalFields: ['currentPrice', 'sector', 'industry']
+    }
+  },
+  derivative: {
+    type: 'derivative',
+    label: 'Derivative',
+    description: 'Options, warrants, and other derivatives',
+    icon: '⚡',
+    color: 'purple',
+    requiresSymbol: true,
+    requiresExchange: true,
+    hasPriceUpdates: true,
+    formComponent: 'StockTickerForm',
+    category: 'financial',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'],
+    customFields: ['sector', 'industry', 'strike', 'expiration'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'symbol', 'exchange', 'quantity', 'costBasis'],
+      optionalFields: ['currentPrice', 'sector', 'industry']
+    }
+  },
+  cryptocurrency: {
+    type: 'cryptocurrency',
+    label: 'Cryptocurrency',
+    description: 'Digital currencies and crypto assets',
+    icon: '🐕',
+    color: 'orange',
+    requiresSymbol: true,
+    requiresExchange: true,
+    hasPriceUpdates: true,
+    formComponent: 'CryptoForm',
+    category: 'digital',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'BTC', 'ETH'],
+    customFields: ['walletAddress', 'blockchain'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'symbol', 'exchange', 'quantity', 'costBasis'],
+      optionalFields: ['walletAddress', 'blockchain']
+    }
+  },
+  loan: {
+    type: 'loan',
+    label: 'Loan',
+    description: 'Loans and loan receivables',
+    icon: '🏦',
+    color: 'red',
+    requiresSymbol: false,
+    requiresExchange: false,
+    hasPriceUpdates: false,
+    formComponent: 'ManualAssetForm',
+    category: 'financial',
+    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'],
+    customFields: ['borrower', 'interestRate', 'maturity'],
+    validationRules: {
+      minValue: 0,
+      requiredFields: ['name', 'currentValue', 'currency'],
+      optionalFields: ['borrower', 'interestRate', 'maturity']
     }
   },
   cash: {
@@ -60,123 +193,9 @@ export const ASSET_TYPES: Record<Asset['type'], AssetTypeConfig> = {
       optionalFields: ['accountType', 'institution', 'description']
     }
   },
-  crypto_ticker: {
-    type: 'crypto_ticker',
-    label: 'Crypto Tickers',
-    description: 'Individual cryptocurrencies',
-    icon: '🐕',
-    color: 'orange',
-    requiresSymbol: true,
-    requiresExchange: true,
-    hasPriceUpdates: true,
-    formComponent: 'CryptoForm',
-    category: 'digital',
-    supportedCurrencies: ['USD', 'EUR', 'GBP', 'BTC', 'ETH'],
-    customFields: ['walletAddress', 'blockchain'],
-    validationRules: {
-      minValue: 0,
-      requiredFields: ['name', 'symbol', 'exchange', 'quantity', 'costBasis'],
-      optionalFields: ['walletAddress', 'blockchain']
-    }
-  },
-  crypto_exchange_wallet: {
-    type: 'crypto_exchange_wallet',
-    label: 'Crypto Exchanges & Wallets',
-    description: 'Crypto exchange accounts and wallets',
-    icon: '🦊',
-    color: 'purple',
-    requiresSymbol: false,
-    requiresExchange: true,
-    hasPriceUpdates: false,
-    formComponent: 'CryptoExchangeForm',
-    category: 'digital',
-    supportedCurrencies: ['USD', 'EUR', 'GBP', 'BTC', 'ETH'],
-    customFields: ['exchangeType', 'accountId'],
-    validationRules: {
-      minValue: 0,
-      requiredFields: ['name', 'exchange', 'currentValue', 'currency'],
-      optionalFields: ['exchangeType', 'accountId', 'description']
-    }
-  },
-  home: {
-    type: 'home',
-    label: 'Homes',
-    description: 'Real estate properties',
-    icon: '🏠',
-    color: 'red',
-    requiresSymbol: false,
-    requiresExchange: false,
-    hasPriceUpdates: false,
-    formComponent: 'HomeForm',
-    category: 'physical',
-    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'],
-    customFields: ['address', 'yearBuilt', 'squareFeet', 'propertyType'],
-    validationRules: {
-      minValue: 0,
-      requiredFields: ['name', 'currentValue', 'currency'],
-      optionalFields: ['address', 'yearBuilt', 'squareFeet', 'propertyType', 'purchasePrice']
-    }
-  },
-  car: {
-    type: 'car',
-    label: 'Cars',
-    description: 'Vehicles and automobiles',
-    icon: '🚗',
-    color: 'indigo',
-    requiresSymbol: false,
-    requiresExchange: false,
-    hasPriceUpdates: false,
-    formComponent: 'CarForm',
-    category: 'physical',
-    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'],
-    customFields: ['make', 'model', 'year', 'vin', 'mileage', 'condition'],
-    validationRules: {
-      minValue: 0,
-      requiredFields: ['name', 'currentValue', 'currency'],
-      optionalFields: ['make', 'model', 'year', 'vin', 'mileage', 'condition', 'purchasePrice']
-    }
-  },
-  precious_metals: {
-    type: 'precious_metals',
-    label: 'Precious Metals',
-    description: 'Gold, silver, and other precious metals',
-    icon: '🥇',
-    color: 'yellow',
-    requiresSymbol: false,
-    requiresExchange: false,
-    hasPriceUpdates: true,
-    formComponent: 'PreciousMetalsForm',
-    category: 'physical',
-    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'],
-    customFields: ['metalType', 'purity', 'weight', 'storageLocation'],
-    validationRules: {
-      minValue: 0,
-      requiredFields: ['name', 'currentValue', 'currency'],
-      optionalFields: ['metalType', 'purity', 'weight', 'storageLocation', 'purchasePrice']
-    }
-  },
-  banks_brokerages: {
-    type: 'banks_brokerages',
-    label: 'Banks & Brokerages',
-    description: 'Bank accounts, brokerage accounts, and investment accounts',
-    icon: '🏦',
-    color: 'blue',
-    requiresSymbol: false,
-    requiresExchange: false,
-    hasPriceUpdates: false,
-    formComponent: 'BanksBrokeragesForm',
-    category: 'financial',
-    supportedCurrencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR', 'BRL', 'MXN'],
-    customFields: ['institution', 'accountType', 'accountNumber'],
-    validationRules: {
-      minValue: 0,
-      requiredFields: ['name', 'currentValue', 'currency'],
-      optionalFields: ['institution', 'accountType', 'accountNumber', 'description']
-    }
-  },
-  generic_asset: {
-    type: 'generic_asset',
-    label: 'Manual Assets',
+  other: {
+    type: 'other',
+    label: 'Other Assets',
     description: 'Any other asset type',
     icon: '📦',
     color: 'gray',
@@ -193,25 +212,6 @@ export const ASSET_TYPES: Record<Asset['type'], AssetTypeConfig> = {
       optionalFields: ['category', 'tags', 'description']
     }
   },
-  account: {
-    type: 'account',
-    label: 'Connected Accounts',
-    description: 'Bank and brokerage accounts connected via Plaid',
-    icon: '🔗',
-    color: 'blue',
-    requiresSymbol: false,
-    requiresExchange: false,
-    hasPriceUpdates: false,
-    formComponent: 'AccountForm',
-    category: 'financial',
-    supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD'],
-    customFields: ['institution', 'providerAccountId', 'mask'],
-    validationRules: {
-      minValue: 0,
-      requiredFields: ['name', 'institution', 'providerAccountId'],
-      optionalFields: ['officialName', 'mask', 'description']
-    }
-  }
 };
 
 // Helper functions
@@ -241,54 +241,62 @@ export const ASSET_CATEGORIES = {
     label: 'Financial Assets',
     description: 'Traditional financial instruments',
     icon: '💼',
-    types: ['stock_ticker', 'cash', 'banks_brokerages', 'account'] as Asset['type'][]
+    types: ['account', 'equity', 'etf', 'mutual fund', 'fixed income', 'derivative', 'cryptocurrency', 'loan', 'cash'] as Asset['type'][]
   },
   digital: {
     label: 'Digital Assets',
     description: 'Cryptocurrencies and digital currencies',
     icon: '💻',
-    types: ['crypto_ticker', 'crypto_exchange_wallet'] as Asset['type'][]
+    types: ['cryptocurrency'] as Asset['type'][]
   },
   physical: {
     label: 'Physical Assets',
     description: 'Tangible assets and real estate',
     icon: '🏘️',
-    types: ['home', 'car', 'precious_metals'] as Asset['type'][]
+    types: [] as Asset['type'][]
   },
   generic: {
     label: 'Other Assets',
     description: 'Manual and custom assets',
     icon: '📋',
-    types: ['generic_asset'] as Asset['type'][]
+    types: ['other'] as Asset['type'][]
   }
 } as const;
 
 // Popular asset types for quick access
 export const POPULAR_ASSET_TYPES: Asset['type'][] = [
-  'stock_ticker',
-  'cash',
-  'crypto_ticker',
-  'home',
-  'car',
   'account',
-  'generic_asset'
+  'equity',
+  'cash',
+  'cryptocurrency',
+  'other'
 ];
 
 // Asset types that require symbol/exchange validation
 export const SYMBOL_REQUIRED_TYPES: Asset['type'][] = [
-  'stock_ticker',
-  'crypto_ticker'
+  'equity',
+  'etf',
+  'mutual fund',
+  'fixed income',
+  'derivative',
+  'cryptocurrency'
 ];
 
 export const EXCHANGE_REQUIRED_TYPES: Asset['type'][] = [
-  'stock_ticker',
-  'crypto_ticker',
-  'crypto_exchange_wallet'
+  'equity',
+  'etf',
+  'mutual fund',
+  'fixed income',
+  'derivative',
+  'cryptocurrency'
 ];
 
 // Asset types that support price updates
 export const PRICE_UPDATE_SUPPORTED_TYPES: Asset['type'][] = [
-  'stock_ticker',
-  'crypto_ticker',
-  'precious_metals'
+  'equity',
+  'etf',
+  'mutual fund',
+  'fixed income',
+  'derivative',
+  'cryptocurrency'
 ];

@@ -93,21 +93,21 @@ export default function AddAssetModal({
     };
 
     switch (selectedAssetType) {
-      case 'banks_brokerages':
+      case 'account':
         return <BanksBrokeragesForm {...commonProps} sectionId={sectionId} userId={userId} />;
-      case 'stock_ticker':
+      case 'equity':
+      case 'etf':
+      case 'mutual fund':
+      case 'fixed income':
+      case 'derivative':
         return <StockTickerForm {...commonProps} />;
       case 'cash':
         return <CashForm {...commonProps} />;
-      case 'crypto_ticker':
+      case 'cryptocurrency':
         return <CryptoForm {...commonProps} />;
-      case 'crypto_exchange_wallet':
-        return <CryptoExchangeForm {...commonProps} />;
-      case 'home':
-        return <HomeForm {...commonProps} />;
-      case 'car':
-        return <CarForm {...commonProps} />;
-      case 'generic_asset':
+      case 'loan':
+        return <ManualAssetForm {...commonProps} />;
+      case 'other':
         return <ManualAssetForm {...commonProps} />;
       default:
         return <ManualAssetForm {...commonProps} />;

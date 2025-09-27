@@ -58,7 +58,7 @@ export const sampleAssetSections: Omit<AssetSection, 'id' | 'sheetId'>[] = [
 export const sampleAssets: Omit<Asset, 'id'>[] = [
   {
     name: 'Dollar General Corp',
-    type: 'stock_ticker',
+    type: 'equity',
     symbol: 'DG',
     exchange: 'NYSE',
     currency: 'USD',
@@ -89,7 +89,7 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
   },
   {
     name: 'Danaos Corporation',
-    type: 'stock_ticker',
+    type: 'equity',
     symbol: 'DAC',
     exchange: 'NYSE',
     currency: 'USD',
@@ -120,7 +120,7 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
   },
   {
     name: 'Torm Plc Shs Cl A',
-    type: 'stock_ticker',
+    type: 'equity',
     symbol: 'TRMD',
     exchange: 'NASDAQ',
     currency: 'USD',
@@ -180,7 +180,7 @@ export const sampleAssets: Omit<Asset, 'id'>[] = [
   },
   {
     name: 'asasas',
-    type: 'generic_asset',
+    type: 'other',
     currency: 'USD',
     quantity: 1,
     currentPrice: 300,

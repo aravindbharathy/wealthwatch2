@@ -77,7 +77,7 @@ export default function CarForm({ onSubmit, onBack, loading = false }: CarFormPr
     try {
       const assetData: CreateAssetInput = {
         name: formData.name,
-        type: 'car',
+        type: 'other',
         currency: formData.currency,
         quantity: 1, // Vehicles are always quantity 1
         currentPrice: formData.currentValue,

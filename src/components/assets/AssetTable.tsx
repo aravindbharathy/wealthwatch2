@@ -437,7 +437,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
       </div>
 
       {/* Info Icon - Only show for stock ticker assets */}
-      {isAuthenticated && asset.type === 'stock_ticker' && (
+      {isAuthenticated && asset.type === 'equity' && (
         <div className="flex justify-center">
           <button
             onClick={(e) => {

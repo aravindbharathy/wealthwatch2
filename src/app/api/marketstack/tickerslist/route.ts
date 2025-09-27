@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
         
         return {
           symbol: ticker.ticker,
-          name: ticker.name,
+          name: ticker.name || ticker.ticker, // Fallback to symbol if name is empty
           exchange: ticker.stock_exchange?.name || '',
           exchange_code: ticker.stock_exchange?.acronym || '',
           country: ticker.stock_exchange?.country || '',
@@ -226,7 +226,7 @@ export async function GET(request: NextRequest) {
       
       return {
         symbol: ticker.ticker,
-        name: ticker.name,
+        name: ticker.name || ticker.ticker, // Fallback to symbol if name is empty
         exchange: ticker.stock_exchange?.name || '',
         exchange_code: ticker.stock_exchange?.acronym || '',
         country: ticker.stock_exchange?.country || '',

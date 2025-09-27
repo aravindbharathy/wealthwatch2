@@ -103,11 +103,60 @@ export interface AssetPerformance {
   totalReturnPercent: number;
 }
 
+// Asset type definitions
+export type AssetType = 
+  | 'account'
+  | 'cash' 
+  | 'cryptocurrency' 
+  | 'derivative' 
+  | 'equity' 
+  | 'etf' 
+  | 'fixed income' 
+  | 'loan' 
+  | 'mutual fund' 
+  | 'other';
+
+export type AssetSubType = 
+  | 'asset backed security'
+  | 'bill'
+  | 'bond'
+  | 'bond with warrants'
+  | 'cash'
+  | 'cash management bill'
+  | 'common stock'
+  | 'convertible bond'
+  | 'convertible equity'
+  | 'cryptocurrency'
+  | 'depositary receipt'
+  | 'depositary receipt on debt'
+  | 'etf'
+  | 'float rating note'
+  | 'fund of funds'
+  | 'hedge fund'
+  | 'limited partnership unit'
+  | 'medium term note'
+  | 'money market debt'
+  | 'mortgage backed security'
+  | 'municipal bond'
+  | 'mutual fund'
+  | 'note'
+  | 'option'
+  | 'other'
+  | 'plaid'
+  | 'preferred convertible'
+  | 'preferred equity'
+  | 'private equity fund'
+  | 'real estate investment trust'
+  | 'structured equity product'
+  | 'treasury inflation protected securities'
+  | 'unit'
+  | 'warrant';
+
 export interface Asset extends BaseDocument {
   id: string;
   name: string;
-  type: 'stock_ticker' | 'cash' | 'crypto_ticker' | 'crypto_exchange_wallet' | 'home' | 'car' | 'precious_metals' | 'banks_brokerages' | 'generic_asset' | 'account';
-  subType?: string; // For finer categorization
+  type: AssetType;
+  subType?: AssetSubType | null;
   symbol?: string; // e.g., 'AAPL', 'BTC'
   exchange?: string; // e.g., 'NASDAQ', 'Binance'
   currency: string;
@@ -448,8 +497,8 @@ export interface PaginatedResponse<T> {
 // Form input types for creating/updating records
 export interface CreateAssetInput {
   name: string;
-  type: Asset['type'];
-  subType?: string;
+  type: AssetType;
+  subType?: AssetSubType | null;
   symbol?: string;
   exchange?: string;
   currency: string;

@@ -75,7 +75,7 @@ export default function HomeForm({ onSubmit, onBack, loading = false }: HomeForm
     try {
       const assetData: CreateAssetInput = {
         name: formData.name,
-        type: 'home',
+        type: 'other',
         currency: formData.currency,
         quantity: 1, // Properties are always quantity 1
         currentPrice: formData.currentValue,

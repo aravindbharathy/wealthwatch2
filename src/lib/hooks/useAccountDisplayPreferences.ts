@@ -145,6 +145,7 @@ export function useAccountDisplayPreferences(userId: string) {
           id: `account-summary-${account.id}`,
           name: account.name,
           type: 'account' as const,
+          subType: 'plaid' as const,
           currentValue: account.balances.current,
           currency: account.currency,
           quantity: 1,
@@ -166,6 +167,8 @@ export function useAccountDisplayPreferences(userId: string) {
               accountSubtype: account.subtype,
               availableBalance: account.balances.available,
               isAccountSummary: true, // Flag to identify account summaries
+              mappedType: 'account', // Our mapped type
+              mappedSubType: 'plaid', // Our mapped subtype
             },
           },
           performance: account.performance,

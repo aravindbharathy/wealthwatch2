@@ -114,8 +114,7 @@ export const validateCreateAssetInput = (data: CreateAssetInput, options: Valida
   if (nameError) errors.push(nameError);
 
   const typeError = validateEnum(data.type, 'Type', [
-    'stock_ticker', 'cash', 'crypto_ticker', 'crypto_exchange_wallet', 
-    'home', 'car', 'precious_metals', 'generic_asset'
+    'account', 'equity', 'etf', 'mutual fund', 'fixed income', 'derivative', 'cryptocurrency', 'loan', 'cash', 'other'
   ]);
   if (typeError) errors.push(typeError);
 
@@ -143,7 +142,7 @@ export const validateCreateAssetInput = (data: CreateAssetInput, options: Valida
   }
 
   // Business logic validations
-  if (data.type === 'stock_ticker' || data.type === 'crypto_ticker') {
+  if (data.type === 'equity' || data.type === 'etf' || data.type === 'mutual fund' || data.type === 'fixed income' || data.type === 'derivative' || data.type === 'cryptocurrency') {
     if (!data.symbol) {
       warnings.push('Symbol is recommended for ticker-based assets');
     }
@@ -182,8 +181,7 @@ export const validateAsset = (asset: Asset, options: ValidationOptions = {}): Va
   if (nameError) errors.push(nameError);
 
   const typeError = validateEnum(asset.type, 'Type', [
-    'stock_ticker', 'cash', 'crypto_ticker', 'crypto_exchange_wallet', 
-    'home', 'car', 'precious_metals', 'generic_asset'
+    'account', 'equity', 'etf', 'mutual fund', 'fixed income', 'derivative', 'cryptocurrency', 'loan', 'cash', 'other'
   ]);
   if (typeError) errors.push(typeError);
 
