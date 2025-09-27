@@ -237,7 +237,7 @@ export default function SectionItem({
     return (
       <div className="relative transition-all duration-200 overflow-visible mb-2">
         <div className="cursor-pointer relative bg-transparent">
-          <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-1 px-2">
+          <div className="grid grid-cols-[16px_1fr_64px_120px_120px_32px_32px] gap-2 items-center py-1 px-2">
             <div className="flex justify-center">
               <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -316,7 +316,7 @@ export default function SectionItem({
         }`}
         onClick={() => onToggle(section.id)}
       >
-        <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-1 px-2">
+        <div className="grid grid-cols-[16px_1fr_64px_120px_120px_32px_32px] gap-2 items-center py-1 px-2">
           {/* Toggle Icon */}
           <div className="flex justify-center">
             <svg 
@@ -380,6 +380,9 @@ export default function SectionItem({
             />
           </div>
           
+          {/* Empty space for info icon alignment */}
+          <div></div>
+          
           {/* Actions Menu */}
           <div className="flex justify-center">
             {isAuthenticated && (
@@ -390,10 +393,10 @@ export default function SectionItem({
                     e.stopPropagation();
                     setShowActions(!showActions);
                   }}
-                  className="p-1 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="p-0.5 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
                   title="Section options"
                 >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                   </svg>
                 </button>

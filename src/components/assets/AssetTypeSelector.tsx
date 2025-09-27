@@ -151,7 +151,7 @@ export default function AssetTypeSelector({ onSelectType, onClose }: AssetTypeSe
           <button
             key={option.type}
             onClick={() => handleTypeSelect(option.type)}
-            className="group p-6 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="group p-6 bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <div className="flex flex-col items-center text-center space-y-3">
               <div className="text-gray-600 group-hover:text-gray-900 transition-colors">

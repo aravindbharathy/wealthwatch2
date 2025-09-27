@@ -8,6 +8,7 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import CurrencyFormattedValue from '@/components/CurrencyFormattedValue';
+import AssetDetailPopup from './modals/AssetDetailPopup';
 
 interface AssetTableProps {
   assets: Asset[];
@@ -38,10 +39,20 @@ export default function AssetTable({
     isOpen: boolean;
     assetId: string | null;
     position: { top: number; left: number };
+    buttonElement: HTMLElement | null;
   }>({
     isOpen: false,
     assetId: null,
     position: { top: 0, left: 0 },
+    buttonElement: null,
+  });
+
+  const [detailPopupState, setDetailPopupState] = useState<{
+    isOpen: boolean;
+    asset: Asset | null;
+  }>({
+    isOpen: false,
+    asset: null,
   });
 
 
@@ -56,19 +67,14 @@ export default function AssetTable({
       return;
     }
     
-    
-    const rect = event.currentTarget.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
+    const buttonElement = event.currentTarget as HTMLElement;
+    const rect = buttonElement.getBoundingClientRect();
     const popupWidth = 160; // min-w-[160px]
     
-    // Calculate position to ensure popup stays within viewport
-    // Since popup uses position: fixed, we use viewport coordinates (no scrollX/scrollY)
-    let left = rect.right - popupWidth; // Position to the right of the button
+    // Calculate position relative to the button
+    let left = rect.right - popupWidth;
     if (left < 10) {
-      left = rect.left; // If not enough space on the right, position to the left
-    }
-    if (left + popupWidth > viewportWidth - 10) {
-      left = viewportWidth - popupWidth - 10; // Ensure it doesn't go off-screen
+      left = rect.left;
     }
     
     // Use setTimeout to delay the popup opening to prevent immediate closure by mousedown
@@ -77,9 +83,10 @@ export default function AssetTable({
         isOpen: true,
         assetId,
         position: {
-          top: rect.bottom + 4, // Use viewport coordinates for fixed positioning
+          top: rect.bottom + 4,
           left: left,
         },
+        buttonElement,
       });
     }, 0);
   };
@@ -89,8 +96,53 @@ export default function AssetTable({
       isOpen: false,
       assetId: null,
       position: { top: 0, left: 0 },
+      buttonElement: null,
     });
   };
+
+  const openDetailPopup = (asset: Asset) => {
+    setDetailPopupState({
+      isOpen: true,
+      asset,
+    });
+  };
+
+  const closeDetailPopup = () => {
+    setDetailPopupState({
+      isOpen: false,
+      asset: null,
+    });
+  };
+
+  // Update popup position on scroll
+  useEffect(() => {
+    if (!popupState.isOpen || !popupState.buttonElement) return;
+
+    const updatePosition = () => {
+      const rect = popupState.buttonElement!.getBoundingClientRect();
+      const popupWidth = 160; // min-w-[160px]
+      
+      let left = rect.right - popupWidth;
+      if (left < 10) {
+        left = rect.left;
+      }
+      
+      setPopupState(prev => ({
+        ...prev,
+        position: {
+          top: rect.bottom + 4,
+          left: left,
+        },
+      }));
+    };
+
+    // Update position on scroll
+    window.addEventListener('scroll', updatePosition, true);
+    
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [popupState.isOpen, popupState.buttonElement]);
 
 
 
@@ -161,14 +213,15 @@ export default function AssetTable({
   }
 
   return (
-    <div className="space-y-0">
+    <div className="relative">
         {/* Table Header */}
-        <div className="grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-3 px-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+        <div className="grid grid-cols-[16px_1fr_64px_120px_120px_32px_32px] gap-2 items-center py-3 px-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
           <div></div>
           <div className="text-left">ASSET</div>
           <div className="text-right">IRR</div>
           <div className="text-right">COST BASIS</div>
           <div className="text-right">VALUE</div>
+          <div></div>
           <div></div>
         </div>
 
@@ -196,6 +249,7 @@ export default function AssetTable({
                 onDeleteAsset={onDeleteAsset}
                 onMoveAsset={onMoveAsset}
                 openPopup={openPopup}
+                openDetailPopup={openDetailPopup}
                 formatCurrency={formatCurrency}
                 formatPercent={formatPercent}
                 getPerformanceIcon={getPerformanceIcon}
@@ -225,6 +279,13 @@ export default function AssetTable({
           isAccountHolding={popupState.assetId ? assets.find(a => a.id === popupState.assetId)?.accountMapping?.isLinked === true : false}
           position={popupState.position}
         />
+
+        {/* Asset Detail Popup */}
+        <AssetDetailPopup
+          isOpen={detailPopupState.isOpen}
+          onClose={closeDetailPopup}
+          asset={detailPopupState.asset}
+        />
     </div>
   );
 }
@@ -240,6 +301,7 @@ interface SortableAssetRowProps {
   onDeleteAsset: (assetId: string) => void;
   onMoveAsset?: (assetId: string) => void;
   openPopup: (assetId: string, event: React.MouseEvent) => void;
+  openDetailPopup: (asset: Asset) => void;
   formatCurrency: (amount: number) => string;
   formatPercent: (percent: number) => string;
   getPerformanceIcon: (change: number) => JSX.Element | null;
@@ -254,6 +316,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
   onDeleteAsset,
   onMoveAsset,
   openPopup,
+  openDetailPopup,
   formatCurrency,
   formatPercent,
   getPerformanceIcon,
@@ -284,7 +347,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative grid grid-cols-[16px_1fr_64px_120px_120px_40px] gap-4 items-center py-1 px-2 hover:bg-gray-50 group transition-all duration-200 ${
+      className={`relative grid grid-cols-[16px_1fr_64px_120px_120px_32px_32px] gap-2 items-center py-1 px-2 hover:bg-gray-50 group transition-all duration-200 ${
         !isLastAsset ? 'border-b border-gray-100' : ''
       } ${isDragging ? 'z-50 pointer-events-none' : ''}`}
     >
@@ -294,7 +357,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
         <div
           {...attributes}
           {...listeners}
-          className="cursor-move p-1 hover:bg-gray-200 transition-colors duration-150 group/drag"
+          className="cursor-move p-0.5 hover:bg-gray-200 transition-colors duration-150 group/drag"
           title="Drag to reorder"
         >
           <svg className="w-3 h-3 text-gray-400 group-hover/drag:text-gray-600 transition-colors duration-150" fill="currentColor" viewBox="0 0 20 20">
@@ -373,6 +436,26 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
         </div>
       </div>
 
+      {/* Info Icon - Only show for stock ticker assets */}
+      {isAuthenticated && asset.type === 'stock_ticker' && (
+        <div className="flex justify-center">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              openDetailPopup(asset);
+            }}
+            className="p-0.5 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100"
+            title="View details"
+            type="button"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Actions */}
       {isAuthenticated && (
         <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
@@ -382,11 +465,11 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
               e.stopPropagation();
               openPopup(asset.id, e);
             }}
-            className="p-1 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-0.5 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
             title="More options"
             type="button"
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
             </svg>
           </button>
@@ -418,7 +501,7 @@ const InterAssetDropZone: React.FC<InterAssetDropZoneProps> = ({ sectionId, targ
       className={`transition-all duration-150 ease-out ${
         isOver 
           ? 'h-10 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded flex items-center justify-center shadow-sm' 
-          : 'h-1 bg-transparent mx-2' // Keep minimal height to prevent layout shifts
+          : 'h-1 bg-transparent' // Keep minimal height to prevent layout shifts
       }`}
     >
       {isOver && (
