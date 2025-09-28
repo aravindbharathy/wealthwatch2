@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Asset } from '@/lib/firebase/types';
 import {
   useSortable,
@@ -8,7 +9,6 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import CurrencyFormattedValue from '@/components/CurrencyFormattedValue';
-import AssetDetailPopup from './modals/AssetDetailPopup';
 
 interface AssetTableProps {
   assets: Asset[];
@@ -35,6 +35,7 @@ export default function AssetTable({
   sectionId,
   activeAssetId,
 }: AssetTableProps) {
+  const router = useRouter();
   const [popupState, setPopupState] = useState<{
     isOpen: boolean;
     assetId: string | null;
@@ -45,14 +46,6 @@ export default function AssetTable({
     assetId: null,
     position: { top: 0, left: 0 },
     buttonElement: null,
-  });
-
-  const [detailPopupState, setDetailPopupState] = useState<{
-    isOpen: boolean;
-    asset: Asset | null;
-  }>({
-    isOpen: false,
-    asset: null,
   });
 
 
@@ -100,18 +93,8 @@ export default function AssetTable({
     });
   };
 
-  const openDetailPopup = (asset: Asset) => {
-    setDetailPopupState({
-      isOpen: true,
-      asset,
-    });
-  };
-
-  const closeDetailPopup = () => {
-    setDetailPopupState({
-      isOpen: false,
-      asset: null,
-    });
+  const openDetailPage = (asset: Asset) => {
+    router.push(`/assets/${asset.id}`);
   };
 
   // Update popup position on scroll
@@ -249,7 +232,7 @@ export default function AssetTable({
                 onDeleteAsset={onDeleteAsset}
                 onMoveAsset={onMoveAsset}
                 openPopup={openPopup}
-                openDetailPopup={openDetailPopup}
+                openDetailPage={openDetailPage}
                 formatCurrency={formatCurrency}
                 formatPercent={formatPercent}
                 getPerformanceIcon={getPerformanceIcon}
@@ -280,12 +263,6 @@ export default function AssetTable({
           position={popupState.position}
         />
 
-        {/* Asset Detail Popup */}
-        <AssetDetailPopup
-          isOpen={detailPopupState.isOpen}
-          onClose={closeDetailPopup}
-          asset={detailPopupState.asset}
-        />
     </div>
   );
 }
@@ -301,7 +278,7 @@ interface SortableAssetRowProps {
   onDeleteAsset: (assetId: string) => void;
   onMoveAsset?: (assetId: string) => void;
   openPopup: (assetId: string, event: React.MouseEvent) => void;
-  openDetailPopup: (asset: Asset) => void;
+  openDetailPage: (asset: Asset) => void;
   formatCurrency: (amount: number) => string;
   formatPercent: (percent: number) => string;
   getPerformanceIcon: (change: number) => JSX.Element | null;
@@ -316,7 +293,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
   onDeleteAsset,
   onMoveAsset,
   openPopup,
-  openDetailPopup,
+  openDetailPage,
   formatCurrency,
   formatPercent,
   getPerformanceIcon,
@@ -443,7 +420,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              openDetailPopup(asset);
+              openDetailPage(asset);
             }}
             className="flex items-center justify-center h-full w-full hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
             title="View details"

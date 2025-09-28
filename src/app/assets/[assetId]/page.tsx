@@ -1,0 +1,826 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { Asset } from '@/lib/firebase/types';
+import CurrencyFormattedValue from '@/components/CurrencyFormattedValue';
+import { useAuthNew } from '@/lib/contexts/AuthContext';
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
+import { getAsset } from '@/lib/firebase/firebaseUtils';
+import { convertCurrency } from '@/lib/currency';
+
+type TabType = 'MY POSITION' | 'VALUE' | 'RETURNS' | 'REPORTING' | 'ASSORTED' | 'NOTES' | 'DOCUMENTS';
+
+export default function AssetDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const { user } = useAuthNew();
+  const { preferredCurrency: contextPreferredCurrency } = useCurrency();
+  const [activeTab, setActiveTab] = useState<TabType>('MY POSITION');
+  const [asset, setAsset] = useState<Asset | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [costBasisInput, setCostBasisInput] = useState('');
+  const [detectedCurrency, setDetectedCurrency] = useState<string>('');
+  const [convertedValue, setConvertedValue] = useState<number>(0);
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionError, setConversionError] = useState<string>('');
+  const [preferredCurrency, setPreferredCurrency] = useState<string>('USD');
+  const [exchangeCurrencyConversion, setExchangeCurrencyConversion] = useState<{
+    fromAmount: number;
+    toAmount: number;
+    fromCurrency: string;
+    toCurrency: string;
+  } | null>(null);
+
+  // Get assetId from URL params
+  const assetId = params.assetId as string;
+
+  // Currency patterns for detection
+  const currencyPatterns = [
+    { pattern: /^USD\s*(\d+(?:\.\d{2})?)$/i, currency: 'USD', symbol: '$' },
+    { pattern: /^INR\s*(\d+(?:\.\d{2})?)$/i, currency: 'INR', symbol: '₹' },
+    { pattern: /^EUR\s*(\d+(?:\.\d{2})?)$/i, currency: 'EUR', symbol: '€' },
+    { pattern: /^GBP\s*(\d+(?:\.\d{2})?)$/i, currency: 'GBP', symbol: '£' },
+    { pattern: /^JPY\s*(\d+(?:\.\d{2})?)$/i, currency: 'JPY', symbol: '¥' },
+    { pattern: /^CAD\s*(\d+(?:\.\d{2})?)$/i, currency: 'CAD', symbol: 'C$' },
+    { pattern: /^AUD\s*(\d+(?:\.\d{2})?)$/i, currency: 'AUD', symbol: 'A$' },
+    { pattern: /^CHF\s*(\d+(?:\.\d{2})?)$/i, currency: 'CHF', symbol: 'CHF' },
+    { pattern: /^HKD\s*(\d+(?:\.\d{2})?)$/i, currency: 'HKD', symbol: 'HK$' },
+    { pattern: /^SGD\s*(\d+(?:\.\d{2})?)$/i, currency: 'SGD', symbol: 'S$' },
+  ];
+
+  // Update preferred currency from context
+  useEffect(() => {
+    if (contextPreferredCurrency && contextPreferredCurrency !== preferredCurrency) {
+      setPreferredCurrency(contextPreferredCurrency);
+    }
+  }, [contextPreferredCurrency, preferredCurrency]);
+
+  // Initialize cost basis input when asset loads
+  useEffect(() => {
+    const initializeCostBasis = async () => {
+      if (asset?.costBasis && asset?.currency && preferredCurrency) {
+        // If the asset currency is the same as preferred currency, no conversion needed
+        if (asset.currency === preferredCurrency) {
+          setCostBasisInput(`${asset.currency} ${asset.costBasis.toString()}`);
+          setDetectedCurrency(asset.currency);
+          setConvertedValue(asset.costBasis);
+          setExchangeCurrencyConversion(null);
+        } else {
+          // Convert to preferred currency
+          try {
+            const conversion = await convertCurrency(asset.currency, preferredCurrency, asset.costBasis);
+            const convertedAmount = conversion.convertedAmount || asset.costBasis;
+            setCostBasisInput(`${preferredCurrency} ${convertedAmount.toFixed(2)}`);
+            setDetectedCurrency(preferredCurrency);
+            setConvertedValue(convertedAmount);
+            
+            // Set up exchange currency conversion display
+            setExchangeCurrencyConversion({
+              fromAmount: convertedAmount,
+              toAmount: asset.costBasis,
+              fromCurrency: preferredCurrency,
+              toCurrency: asset.currency
+            });
+          } catch (error) {
+            console.error('Currency conversion failed during initialization:', error);
+            // Fallback to original currency
+            setCostBasisInput(`${asset.currency} ${asset.costBasis.toString()}`);
+            setDetectedCurrency(asset.currency);
+            setConvertedValue(asset.costBasis);
+            setExchangeCurrencyConversion(null);
+          }
+        }
+      }
+    };
+
+    if (asset && preferredCurrency) {
+      initializeCostBasis();
+    }
+  }, [asset, preferredCurrency]);
+
+  const detectCurrency = (input: string): { amount: number; currency: string; symbol: string } | null => {
+    // First try to match currency patterns
+    for (const { pattern, currency, symbol } of currencyPatterns) {
+      const match = input.match(pattern);
+      if (match) {
+        const amount = parseFloat(match[1]);
+        return { amount, currency, symbol };
+      }
+    }
+
+    // If no currency pattern matches, try to parse as plain number
+    const plainNumber = parseFloat(input);
+    if (!isNaN(plainNumber)) {
+      return { amount: plainNumber, currency: preferredCurrency, symbol: getCurrencySymbol(preferredCurrency) };
+    }
+
+    return null;
+  };
+
+  const getCurrencySymbol = (currency: string): string => {
+    const symbols: Record<string, string> = {
+      USD: '$',
+      INR: '₹',
+      EUR: '€',
+      GBP: '£',
+      JPY: '¥',
+      CAD: 'C$',
+      AUD: 'A$',
+      CHF: 'CHF',
+      HKD: 'HK$',
+      SGD: 'S$',
+    };
+    return symbols[currency] || currency;
+  };
+
+  const handleCostBasisChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let input = e.target.value;
+    setConversionError('');
+
+    if (!input.trim()) {
+      setCostBasisInput('');
+      setDetectedCurrency('');
+      setConvertedValue(0);
+      return;
+    }
+
+    // Ensure proper spacing between currency and number
+    const formattedInput = input.replace(/([A-Z]{3})(\d)/, '$1 $2');
+    if (formattedInput !== input) {
+      input = formattedInput;
+      setCostBasisInput(input);
+    } else {
+      setCostBasisInput(input);
+    }
+
+    const detected = detectCurrency(input);
+    if (!detected) {
+      setConversionError('Invalid currency format. Try: USD 100, INR 100, EUR 100');
+      return;
+    }
+
+    setDetectedCurrency(detected.currency);
+
+    // If the detected currency is the same as preferred, no conversion needed
+    if (detected.currency === preferredCurrency) {
+      setConvertedValue(detected.amount);
+      return;
+    }
+
+    // Convert to preferred currency
+    setIsConverting(true);
+    try {
+      const conversion = await convertCurrency(detected.currency, preferredCurrency, detected.amount);
+      setConvertedValue(conversion.convertedAmount || detected.amount);
+    } catch (error) {
+      console.error('Currency conversion failed:', error);
+      setConversionError('Currency conversion failed. Using original amount.');
+      setConvertedValue(detected.amount);
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  // Fetch asset data from Firebase
+  useEffect(() => {
+    const fetchAsset = async () => {
+      if (!assetId || assetId === 'undefined' || !user?.uid) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const result = await getAsset(user.uid, assetId);
+        
+        if (result.success && result.data) {
+          setAsset(result.data);
+        } else {
+          setError(result.error || 'Asset not found');
+          console.error('Failed to fetch asset:', result.error);
+        }
+      } catch (err) {
+        console.error('Error fetching asset:', err);
+        setError('Failed to load asset data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAsset();
+  }, [assetId, user?.uid]);
+
+  const formatPercent = (percent: number) => {
+    const sign = percent >= 0 ? '+' : '';
+    return `${sign}${percent.toFixed(1)}%`;
+  };
+
+  const getPerformanceIcon = (change: number) => {
+    if (change > 0) {
+      return (
+        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+        </svg>
+      );
+    } else if (change < 0) {
+      return (
+        <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+        </svg>
+      );
+    }
+    return null;
+  };
+
+  const renderTabContent = () => {
+    if (!asset) return null;
+
+    switch (activeTab) {
+    case 'MY POSITION':
+      return (
+        <div className="grid grid-cols-1 gap-6">
+          {/* Position Details */}
+          <div className="bg-white p-4 shadow-sm">
+            <h4 className="font-medium text-gray-900 mb-3">Position Details</h4>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (Total Shares)</label>
+                <input
+                  type="number"
+                  defaultValue={asset.quantity?.toString() || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter quantity"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cost Basis (Optional)</label>
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={costBasisInput}
+                        onChange={handleCostBasisChange}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          conversionError ? 'border-red-300 focus:ring-red-500' : ''
+                        }`}
+                        placeholder="Enter total cost basis (e.g., USD 1000, INR 1000, EUR 1000)"
+                      />
+                      {isConverting && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {conversionError && (
+                      <p className="mt-1 text-sm text-red-600">{conversionError}</p>
+                    )}
+
+                    {detectedCurrency && detectedCurrency !== preferredCurrency && convertedValue > 0 && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                        <p className="text-xs text-blue-700">
+                          <span className="font-medium">{detectedCurrency} {costBasisInput.replace(/[^\d.]/g, '')}</span> = 
+                          <span className="font-medium"> {preferredCurrency} {convertedValue.toFixed(2)}</span>
+                        </p>
+                      </div>
+                    )}
+
+                    {detectedCurrency && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Detected: {detectedCurrency} | Stored as: {preferredCurrency}
+                      </div>
+                    )}
+
+                    {/* Exchange Currency Conversion Display */}
+                    {exchangeCurrencyConversion && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-md border">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-700">
+                            <span className="font-medium">{exchangeCurrencyConversion.fromCurrency} {exchangeCurrencyConversion.fromAmount.toFixed(2)}</span>
+                            <span className="mx-2 text-gray-400">=</span>
+                            <span className="font-medium">{exchangeCurrencyConversion.toCurrency} {exchangeCurrencyConversion.toAmount.toFixed(2)}</span>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Exchange rate
+                          </div>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          Your preferred currency ({preferredCurrency}) vs Stock exchange currency ({asset?.currency})
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Switch to Average Cost
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      case 'VALUE':
+        return (
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column - Current Value */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Current Value</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Total Value:</span>
+                    <CurrencyFormattedValue 
+                      amount={asset.currentValue} 
+                      fromCurrency={asset.currency}
+                      className="text-sm font-medium"
+                    />
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Cost Basis:</span>
+                    <CurrencyFormattedValue 
+                      amount={asset.costBasis || 0} 
+                      fromCurrency={asset.currency}
+                      className="text-sm font-medium"
+                    />
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Gain/Loss:</span>
+                    <span className="text-sm font-medium text-green-600">
+                      <CurrencyFormattedValue 
+                        amount={(asset.currentValue || 0) - (asset.costBasis || 0)} 
+                        fromCurrency={asset.currency}
+                        className="text-sm font-medium"
+                      />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Performance Metrics */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Performance</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Total Return:</span>
+                    <span className="text-sm font-medium text-green-600">
+                      {formatPercent(((asset.currentValue - (asset.costBasis || 0)) / (asset.costBasis || 1)) * 100)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Day Change:</span>
+                    <span className={`text-sm font-medium ${
+                      (asset.performance?.dayChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {asset.performance?.dayChange ? formatPercent(asset.performance.dayChange) : '--'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Year Change:</span>
+                    <span className={`text-sm font-medium ${
+                      (asset.performance?.yearChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {asset.performance?.yearChange ? formatPercent(asset.performance.yearChange) : '--'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'RETURNS':
+        return (
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column - Return Metrics */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Return Metrics</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Total Return:</span>
+                    <span className="text-sm font-medium text-green-600">+15.2%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Annualized Return:</span>
+                    <span className="text-sm font-medium text-green-600">+8.4%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Year to Date:</span>
+                    <span className="text-sm font-medium text-green-600">
+                      {asset.performance?.yearChange ? formatPercent(asset.performance.yearChange) : '+15.2%'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Risk Metrics */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Risk Metrics</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Volatility:</span>
+                    <span className="text-sm font-medium">24.1%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Sharpe Ratio:</span>
+                    <span className="text-sm font-medium">1.2</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Beta:</span>
+                    <span className="text-sm font-medium">1.1</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'REPORTING':
+        return (
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column - Tax Information */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Tax Information</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Taxable Gain:</span>
+                    <span className="text-sm font-medium text-green-600">$2,546.00</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Holding Period:</span>
+                    <span className="text-sm font-medium">Long-term</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Tax Rate:</span>
+                    <span className="text-sm font-medium">15%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Tax Calculations */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Tax Calculations</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Estimated Tax:</span>
+                    <span className="text-sm font-medium">$381.90</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">After Tax Value:</span>
+                    <span className="text-sm font-medium">
+                      <CurrencyFormattedValue 
+                        amount={asset.currentValue - 381.90} 
+                        fromCurrency={asset.currency}
+                        className="text-sm font-medium"
+                      />
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Tax Efficiency:</span>
+                    <span className="text-sm font-medium text-green-600">85%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'ASSORTED':
+        return (
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column - Company Information */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Company Information</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Sector:</span>
+                    <span className="text-sm font-medium">Technology</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Market Cap:</span>
+                    <span className="text-sm font-medium">$4.1T</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Industry:</span>
+                    <span className="text-sm font-medium">Software</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Financial Metrics */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Financial Metrics</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">P/E Ratio:</span>
+                    <span className="text-sm font-medium">28.5</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Dividend Yield:</span>
+                    <span className="text-sm font-medium">0.4%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">52W High:</span>
+                    <span className="text-sm font-medium">$420.82</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'NOTES':
+        return (
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column - Notes */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <textarea
+                  placeholder="Add your notes about this asset..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none"
+                  defaultValue="This is a core holding in my technology portfolio. Strong fundamentals and consistent growth."
+                />
+              </div>
+            </div>
+
+            {/* Right Column - Tags and Categories */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Tags & Categories</span>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., tech, growth, blue-chip"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      defaultValue="tech, growth, blue-chip"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                      <option>Core Holdings</option>
+                      <option>Growth</option>
+                      <option>Value</option>
+                      <option>Dividend</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'DOCUMENTS':
+        return (
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column - Attached Documents */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Attached Documents</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 bg-white rounded border">
+                    <div className="flex items-center space-x-2">
+                      <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm">Purchase Receipt.pdf</span>
+                    </div>
+                    <button className="text-blue-600 hover:text-blue-800 text-sm">Download</button>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white rounded border">
+                    <div className="flex items-center space-x-2">
+                      <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm">Research Report.pdf</span>
+                    </div>
+                    <button className="text-blue-600 hover:text-blue-800 text-sm">Download</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Upload New Documents */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">Upload Documents</span>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Upload File</label>
+                    <input
+                      type="file"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      accept=".pdf,.doc,.docx,.txt"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                      <option>Purchase Receipt</option>
+                      <option>Research Report</option>
+                      <option>Tax Document</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
+                    Upload Document
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="ml-4 text-gray-600">Loading asset {assetId}...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Asset</h1>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-sm text-gray-500 mb-4">Asset ID: {assetId}</p>
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!asset) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Asset Not Found</h1>
+          <p className="text-gray-600 mb-4">The asset you're looking for doesn't exist.</p>
+          <p className="text-sm text-gray-500 mb-4">Asset ID: {assetId}</p>
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const tabs: TabType[] = ['MY POSITION', 'VALUE', 'RETURNS', 'REPORTING', 'ASSORTED', 'NOTES', 'DOCUMENTS'];
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Main Content Area - matches assets page layout */}
+      <div className="flex-1 space-y-4 overflow-visible">
+        {/* Back Button */}
+        <div className="pt-4">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center space-x-1 text-gray-600 hover:text-gray-900 transition-colors text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="font-medium">Back</span>
+          </button>
+        </div>
+
+        {/* Header */}
+        <div className="py-4">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">{asset.name}</h1>
+            <div className="flex items-center space-x-4 mt-1">
+              <span className="text-2xl font-bold text-gray-900">
+                <CurrencyFormattedValue 
+                  amount={asset.currentValue} 
+                  fromCurrency={asset.currency}
+                  className="text-2xl font-bold"
+                />
+              </span>
+              {asset.costBasis !== undefined && asset.costBasis > 0 && (
+                <span className={`text-lg font-medium ${
+                  ((asset.currentValue - asset.costBasis) / asset.costBasis) >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  IRR: {formatPercent(((asset.currentValue - asset.costBasis) / asset.costBasis) * 100)}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div>
+          <nav className="flex space-x-8">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Content */}
+        <div className="py-4">
+          {renderTabContent()}
+        </div>
+      </div>
+
+      {/* Right Sidebar - Stock Information */}
+      <div className="w-full lg:w-80 space-y-6">
+        {activeTab === 'MY POSITION' && (
+          <div className="bg-white p-4 shadow-sm">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h3 className="font-semibold text-gray-900">{asset.symbol || 'N/A'}</h3>
+                <p className="text-sm text-gray-600">{asset.name}</p>
+                <p className="text-xs text-gray-500">{asset.exchange || 'NASDAQ'}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-semibold text-gray-900">
+                  {asset.currentPrice ? `${asset.currency} ${asset.currentPrice.toFixed(2)}` : 'N/A'}
+                </div>
+                <div className="flex items-center justify-end space-x-1 mt-1">
+                  {getPerformanceIcon(asset.performance?.dayChange || 0)}
+                  <span className={`text-sm font-medium ${
+                    (asset.performance?.dayChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {asset.performance?.dayChange ? formatPercent(asset.performance.dayChange) : '--'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

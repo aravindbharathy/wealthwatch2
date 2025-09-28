@@ -213,10 +213,10 @@ export default function SheetTabs({
 
   return (
     <div className="mb-3 relative">
-      {/* Scenario-style Sheet Display */}
-      <div className="flex items-center gap-2">
-        {/* Sheet Cards */}
-        <div className="flex gap-2">
+      {/* Card-style Sheet Display */}
+      <div className="flex items-center">
+        {/* Sheet Cards - no gaps, squared edges */}
+        <div className="flex">
           {sheets.map((sheet, index) => {
             const isActive = activeSheetId === sheet.id;
             const colors = getSheetColor(index, isActive);
@@ -232,18 +232,15 @@ export default function SheetTabs({
             return (
               <div key={sheet.id} className="relative">
                 <div
-                  className={`flex items-center group cursor-pointer transition-all duration-200 hover:scale-105 ${colors.bg} rounded-lg border-2 ${
+                  className={`flex items-center group cursor-pointer transition-all duration-200 hover:scale-105 ${colors.bg} border-2 ${
                     isActive ? 'border-blue-200 shadow-sm' : 'border-gray-200 hover:border-gray-300'
-                  } p-2 min-w-[160px]`}
+                  } p-3 min-w-[180px] h-16`}
                 >
                   {/* Main sheet content - clickable area */}
                   <button
                     onClick={() => onSheetChange(sheet.id)}
                     className="flex items-center flex-1 text-left"
                   >
-                    {/* Vertical Color Bar */}
-                    <div className={`w-1 h-8 ${colors.bar} rounded-full mr-3`}></div>
-                    
                     {/* Sheet Info */}
                     <div className="flex-1">
                       {editingSheetId === sheet.id ? (
@@ -253,15 +250,15 @@ export default function SheetTabs({
                           onChange={(e) => setEditingName(e.target.value)}
                           onBlur={handleRenameSave}
                           onKeyDown={handleKeyPress}
-                          className="bg-transparent border-none outline-none text-sm font-bold w-full"
+                          className="bg-transparent border-none outline-none text-base font-bold w-full"
                           autoFocus
                         />
                       ) : (
-                        <div className={`text-sm font-bold ${colors.text} mb-1`}>
+                        <div className={`text-base font-bold ${colors.text} mb-1`}>
                           {sheet.name}
                         </div>
                       )}
-                      <div className={`text-xs ${colors.valueText}`}>
+                      <div className={`text-sm ${colors.valueText}`}>
                         {sheetValue}
                       </div>
                     </div>
@@ -276,7 +273,7 @@ export default function SheetTabs({
                           e.stopPropagation();
                           handleDropdownToggle(sheet.id);
                         }}
-                        className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1 hover:bg-gray-200 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Sheet options"
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -295,7 +292,7 @@ export default function SheetTabs({
         {isAuthenticated && (
           <button
             onClick={onAddSheet}
-            className="flex items-center justify-center w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all duration-200 hover:scale-105"
+            className="flex items-center justify-center w-16 h-16 bg-gray-50 hover:bg-gray-100 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all duration-200 hover:scale-105"
             title="Add new sheet"
           >
             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
