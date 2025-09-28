@@ -971,7 +971,7 @@ export default function AssetsPage() {
   return (
     <div className="flex flex-col lg:flex-row gap-6">
       {/* Main Content Area */}
-      <div className="flex-1 space-y-4 overflow-visible">
+      <div className="flex-1 space-y-4 overflow-visible min-w-0 max-w-full">
         {/* Demo Mode Toggle */}
         {!user && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -1048,7 +1048,7 @@ export default function AssetsPage() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-full lg:w-80 space-y-6">
+      <div className="w-full lg:w-80 lg:flex-shrink-0 space-y-6">
         <SheetInsights 
           currentSheetAssets={currentSheetAssets} 
           loading={assetsLoading}

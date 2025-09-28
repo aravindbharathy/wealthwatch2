@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { AssetSheet, Asset } from '@/lib/firebase/types';
 import { useCurrency } from '@/lib/contexts/CurrencyContext';
@@ -37,7 +37,8 @@ export default function SheetTabs({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
-  // Convert sheet values efficiently when sheets or assets change
+
+  // Convert sheet values efficiently when currency changes
   useEffect(() => {
     const convertSheetValues = async () => {
       const newConvertedValues: { [sheetId: string]: number } = {};
@@ -213,10 +214,10 @@ export default function SheetTabs({
 
   return (
     <div className="mb-3 relative">
-      {/* Card-style Sheet Display */}
-      <div className="flex items-center">
-        {/* Sheet Cards - no gaps, squared edges */}
-        <div className="flex">
+      {/* Card-style Sheet Display with horizontal scroll */}
+      <div className="flex items-center gap-2">
+        {/* Sheet Cards - no gaps, squared edges with horizontal scroll */}
+        <div className="flex overflow-x-auto sheet-tabs-scroll" style={{ maxWidth: 'calc(100% - 4rem)' }}>
           {sheets.map((sheet, index) => {
             const isActive = activeSheetId === sheet.id;
             const colors = getSheetColor(index, isActive);
@@ -234,7 +235,8 @@ export default function SheetTabs({
                 <div
                   className={`flex items-center group cursor-pointer transition-all duration-200 hover:scale-105 ${colors.bg} border-2 ${
                     isActive ? 'border-blue-200 shadow-sm' : 'border-gray-200 hover:border-gray-300'
-                  } p-3 min-w-[180px] h-16`}
+                  } p-3 h-16 flex-shrink-0`}
+                  style={{ width: 'auto', minWidth: '120px' }}
                 >
                   {/* Main sheet content - clickable area */}
                   <button
@@ -254,11 +256,11 @@ export default function SheetTabs({
                           autoFocus
                         />
                       ) : (
-                        <div className={`text-base font-bold ${colors.text} mb-1`}>
+                        <div className={`text-base font-bold ${colors.text} mb-1 whitespace-nowrap`}>
                           {sheet.name}
                         </div>
                       )}
-                      <div className={`text-sm ${colors.valueText}`}>
+                      <div className={`text-sm ${colors.valueText} whitespace-nowrap`}>
                         {sheetValue}
                       </div>
                     </div>
@@ -288,17 +290,19 @@ export default function SheetTabs({
           })}
         </div>
 
-        {/* Add New Sheet Button */}
+        {/* Add New Sheet Button - Fixed position outside scroll */}
         {isAuthenticated && (
-          <button
-            onClick={onAddSheet}
-            className="flex items-center justify-center w-16 h-16 bg-gray-50 hover:bg-gray-100 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all duration-200 hover:scale-105"
-            title="Add new sheet"
-          >
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-          </button>
+          <div className="flex-shrink-0">
+            <button
+              onClick={onAddSheet}
+              className="flex items-center justify-center w-16 h-16 bg-gray-50 hover:bg-gray-100 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all duration-200 hover:scale-105"
+              title="Add new sheet"
+            >
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </button>
+          </div>
         )}
       </div>
 
