@@ -347,7 +347,7 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative grid grid-cols-[16px_1fr_64px_120px_120px_32px_32px] gap-2 items-center py-1 px-2 hover:bg-gray-50 group transition-all duration-200 ${
+      className={`relative grid grid-cols-[16px_1fr_64px_120px_120px_32px_32px] gap-2 items-center py-2 px-2 hover:bg-gray-50 group transition-all duration-200 ${
         !isLastAsset ? 'border-b border-gray-100' : ''
       } ${isDragging ? 'z-50 pointer-events-none' : ''}`}
     >
@@ -438,19 +438,19 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
 
       {/* Info Icon - Only show for stock ticker assets */}
       {isAuthenticated && asset.type === 'equity' && (
-        <div className="flex justify-center">
+        <div className="flex justify-center h-full">
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               openDetailPopup(asset);
             }}
-            className="p-0.5 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100"
+            className="flex items-center justify-center h-full w-full hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
             title="View details"
             type="button"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
@@ -458,18 +458,18 @@ const SortableAssetRow: React.FC<SortableAssetRowProps> = ({
 
       {/* Actions */}
       {isAuthenticated && (
-        <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="relative flex justify-center h-full">
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               openPopup(asset.id, e);
             }}
-            className="p-0.5 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+            className="flex items-center justify-center h-full w-full hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
             title="More options"
             type="button"
           >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
             </svg>
           </button>
@@ -501,7 +501,8 @@ const InterAssetDropZone: React.FC<InterAssetDropZoneProps> = ({ sectionId, targ
       className={`transition-all duration-150 ease-out ${
         isOver 
           ? 'h-10 bg-blue-50 border-2 border-dashed border-blue-300 mx-2 rounded flex items-center justify-center shadow-sm' 
-          : 'h-1 bg-transparent' // Keep minimal height to prevent layout shifts
+          : 'h-0 bg-transparent' // Completely invisible when not active
+         // : 'h-1 bg-transparent' // Keep minimal height to prevent layout shifts
       }`}
     >
       {isOver && (
