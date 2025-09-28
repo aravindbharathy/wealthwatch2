@@ -45,7 +45,13 @@ function getExchangeCurrency(exchangeCode: string): string {
 }
 
 // Function to map Marketstack asset_type to our AssetType
-export function mapMarketstackAssetTypeToAssetType(assetType: string): AssetType {
+export function mapMarketstackAssetTypeToAssetType(
+  assetType: string, 
+  symbol?: string, 
+  name?: string, 
+  exchangeCode?: string
+): AssetType {
+  // First try direct mapping from asset_type
   const typeMap: Record<string, AssetType> = {
     'stock': 'equity',
     'equity': 'equity',
@@ -64,7 +70,140 @@ export function mapMarketstackAssetTypeToAssetType(assetType: string): AssetType
     'other': 'other',
   };
 
-  return typeMap[assetType.toLowerCase()] || 'other';
+  const directMapping = typeMap[assetType.toLowerCase()];
+  if (directMapping && directMapping !== 'other') {
+    return directMapping;
+  }
+
+  // If direct mapping failed or returned 'other', use intelligent detection
+  return intelligentTypeDetection(symbol || '', name || '', exchangeCode || '');
+}
+
+// Intelligent type detection based on symbol, name, and exchange patterns
+function intelligentTypeDetection(symbol: string, name: string, exchangeCode: string): AssetType {
+  const lowerSymbol = symbol.toLowerCase();
+  const lowerName = name.toLowerCase();
+  const lowerExchange = exchangeCode.toLowerCase();
+
+  // ETF Detection Patterns
+  if (isETF(lowerSymbol, lowerName, lowerExchange)) {
+    return 'etf';
+  }
+
+  // Mutual Fund Detection Patterns
+  if (isMutualFund(lowerSymbol, lowerName, lowerExchange)) {
+    return 'mutual fund';
+  }
+
+  // REIT Detection Patterns
+  if (isREIT(lowerSymbol, lowerName, lowerExchange)) {
+    return 'other'; // REITs are typically classified as 'other'
+  }
+
+  // Bond/Fixed Income Detection Patterns
+  if (isBond(lowerSymbol, lowerName, lowerExchange)) {
+    return 'fixed income';
+  }
+
+  // Cryptocurrency Detection Patterns
+  if (isCryptocurrency(lowerSymbol, lowerName, lowerExchange)) {
+    return 'cryptocurrency';
+  }
+
+  // Default to equity for most securities (stocks)
+  return 'equity';
+}
+
+// ETF Detection Logic
+function isETF(symbol: string, name: string, exchange: string): boolean {
+  // Symbol patterns
+  const etfSymbolPatterns = [
+    'bees', 'etf', 'spdr', 'qqq', 'spy', 'vti', 'voo', 'ark', 'xlk', 'xlf',
+    'xle', 'xli', 'xlv', 'xly', 'xlp', 'xlu', 'xlb', 'xlc', 'xly'
+  ];
+
+  // Name patterns
+  const etfNamePatterns = [
+    'etf', 'exchange traded fund', 'index fund', 'spdr', 'proshares',
+    'ishares', 'vanguard', 'ark', 'invesco', 'state street'
+  ];
+
+  // Exchange-specific patterns
+  if (exchange === 'xnse' && symbol.includes('bees')) {
+    return true; // NSE BEES are ETFs
+  }
+
+  // Check symbol patterns
+  if (etfSymbolPatterns.some(pattern => symbol.includes(pattern))) {
+    return true;
+  }
+
+  // Check name patterns
+  if (etfNamePatterns.some(pattern => name.includes(pattern))) {
+    return true;
+  }
+
+  return false;
+}
+
+// Mutual Fund Detection Logic
+function isMutualFund(symbol: string, name: string, exchange: string): boolean {
+  // Name patterns
+  const mutualFundPatterns = [
+    'mutual fund', 'fund', 'investment fund', 'growth fund', 'income fund',
+    'balanced fund', 'equity fund', 'debt fund', 'hybrid fund'
+  ];
+
+  // Symbol patterns
+  const mutualFundSymbolPatterns = ['mf', 'fund'];
+
+  // Check name patterns
+  if (mutualFundPatterns.some(pattern => name.includes(pattern))) {
+    return true;
+  }
+
+  // Check symbol patterns
+  if (mutualFundSymbolPatterns.some(pattern => symbol.includes(pattern))) {
+    return true;
+  }
+
+  return false;
+}
+
+// REIT Detection Logic
+function isREIT(symbol: string, name: string, exchange: string): boolean {
+  const reitPatterns = [
+    'reit', 'real estate investment trust', 'real estate', 'property',
+    'reit', 'reits'
+  ];
+
+  return reitPatterns.some(pattern => 
+    symbol.includes(pattern) || name.includes(pattern)
+  );
+}
+
+// Bond Detection Logic
+function isBond(symbol: string, name: string, exchange: string): boolean {
+  const bondPatterns = [
+    'bond', 'treasury', 't-bill', 't-note', 't-bond', 'corporate bond',
+    'municipal bond', 'government bond', 'sovereign bond'
+  ];
+
+  return bondPatterns.some(pattern => 
+    symbol.includes(pattern) || name.includes(pattern)
+  );
+}
+
+// Cryptocurrency Detection Logic
+function isCryptocurrency(symbol: string, name: string, exchange: string): boolean {
+  const cryptoPatterns = [
+    'btc', 'eth', 'bitcoin', 'ethereum', 'crypto', 'cryptocurrency',
+    'coin', 'token', 'digital currency'
+  ];
+
+  return cryptoPatterns.some(pattern => 
+    symbol.includes(pattern) || name.includes(pattern)
+  );
 }
 
 // Function to determine AssetSubType based on Marketstack data
@@ -97,6 +236,37 @@ export function determineAssetSubTypeFromMarketstack(
 
   if (lowerAssetType === 'mutual_fund') {
     return 'mutual fund';
+  }
+
+  // Enhanced detection for foreign securities with missing asset_type
+  if (!assetType || assetType === '' || assetType === 'other') {
+    // ETF Detection
+    if (isETF(lowerSymbol, lowerName, '')) {
+      return 'etf';
+    }
+    
+    // Mutual Fund Detection
+    if (isMutualFund(lowerSymbol, lowerName, '')) {
+      return 'mutual fund';
+    }
+    
+    // REIT Detection
+    if (isREIT(lowerSymbol, lowerName, '')) {
+      return 'real estate investment trust';
+    }
+    
+    // Bond Detection
+    if (isBond(lowerSymbol, lowerName, '')) {
+      return 'bond';
+    }
+    
+    // Cryptocurrency Detection
+    if (isCryptocurrency(lowerSymbol, lowerName, '')) {
+      return 'cryptocurrency';
+    }
+    
+    // Default to common stock for most securities
+    return 'common stock';
   }
 
   if (lowerAssetType === 'bond' || lowerAssetType === 'fixed_income') {
@@ -514,7 +684,12 @@ export async function getStockWithPrice(symbol: string): Promise<StockSearchResu
     
     // Map asset type and subtype
     const assetType = priceData.asset_type || '';
-    const mappedType = mapMarketstackAssetTypeToAssetType(assetType);
+    const mappedType = mapMarketstackAssetTypeToAssetType(
+      assetType, 
+      priceData.symbol, 
+      priceData.name || '', 
+      priceData.exchange_code || ''
+    );
     const mappedSubType = determineAssetSubTypeFromMarketstack(
       assetType, 
       priceData.symbol, 
