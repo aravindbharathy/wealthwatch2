@@ -9,7 +9,7 @@ import { useCurrency } from '@/lib/contexts/CurrencyContext';
 import { getAsset } from '@/lib/firebase/firebaseUtils';
 import { convertCurrency } from '@/lib/currency';
 
-type TabType = 'MY POSITION' | 'VALUE' | 'RETURNS' | 'REPORTING' | 'ASSORTED' | 'NOTES' | 'DOCUMENTS';
+type TabType = 'MY POSITION' | 'TRANSACTIONS' | 'NOTES' | 'DOCUMENTS';
 
 export default function AssetDetailPage() {
   const router = useRouter();
@@ -257,7 +257,7 @@ export default function AssetDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cost Basis (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cost Basis</label>
                 <div className="flex items-center space-x-2">
                   <div className="flex-1">
                     <div className="relative">
@@ -316,13 +316,19 @@ export default function AssetDetailPage() {
                     )}
                   </div>
                 </div>
-                <div className="mt-2">
-                  <button
-                    type="button"
-                    className="text-sm text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Switch to Average Cost
-                  </button>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Average Cost</label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                    {asset.avgCost !== undefined && asset.avgCost > 0 ? (
+                      <CurrencyFormattedValue 
+                        amount={asset.avgCost} 
+                        fromCurrency={asset.currency}
+                        className="text-sm font-medium"
+                      />
+                    ) : (
+                      <span className="text-sm text-gray-500">Not available</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -330,238 +336,80 @@ export default function AssetDetailPage() {
         </div>
       );
 
-      case 'VALUE':
+      case 'TRANSACTIONS':
         return (
-          <div className="grid grid-cols-2 gap-6">
-            {/* Left Column - Current Value */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Current Value</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Total Value:</span>
-                    <CurrencyFormattedValue 
-                      amount={asset.currentValue} 
-                      fromCurrency={asset.currency}
-                      className="text-sm font-medium"
-                    />
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Cost Basis:</span>
-                    <CurrencyFormattedValue 
-                      amount={asset.costBasis || 0} 
-                      fromCurrency={asset.currency}
-                      className="text-sm font-medium"
-                    />
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Gain/Loss:</span>
-                    <span className="text-sm font-medium text-green-600">
-                      <CurrencyFormattedValue 
-                        amount={(asset.currentValue || 0) - (asset.costBasis || 0)} 
-                        fromCurrency={asset.currency}
-                        className="text-sm font-medium"
-                      />
-                    </span>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 gap-6">
+            {/* Transactions Table */}
+            <div className="bg-white p-4 shadow-sm">
+              <h4 className="font-medium text-gray-900 mb-3">Transaction History</h4>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {asset.transactions && asset.transactions.length > 0 ? (
+                      asset.transactions.map((transaction) => (
+                        <tr key={transaction.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {transaction.date.toDate().toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              transaction.type === 'buy' ? 'bg-green-100 text-green-800' :
+                              transaction.type === 'sell' ? 'bg-red-100 text-red-800' :
+                              transaction.type === 'dividend' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {transaction.type.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {transaction.quantity.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <CurrencyFormattedValue 
+                              amount={transaction.price} 
+                              fromCurrency={asset.currency}
+                              className="text-sm"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <CurrencyFormattedValue 
+                              amount={transaction.totalAmount} 
+                              fromCurrency={asset.currency}
+                              className="text-sm"
+                            />
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {transaction.notes || '--'}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                          No transactions found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            {/* Right Column - Performance Metrics */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Performance</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Total Return:</span>
-                    <span className="text-sm font-medium text-green-600">
-                      {formatPercent(((asset.currentValue - (asset.costBasis || 0)) / (asset.costBasis || 1)) * 100)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Day Change:</span>
-                    <span className={`text-sm font-medium ${
-                      (asset.performance?.dayChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {asset.performance?.dayChange ? formatPercent(asset.performance.dayChange) : '--'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Year Change:</span>
-                    <span className={`text-sm font-medium ${
-                      (asset.performance?.yearChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {asset.performance?.yearChange ? formatPercent(asset.performance.yearChange) : '--'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'RETURNS':
-        return (
-          <div className="grid grid-cols-2 gap-6">
-            {/* Left Column - Return Metrics */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Return Metrics</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Total Return:</span>
-                    <span className="text-sm font-medium text-green-600">+15.2%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Annualized Return:</span>
-                    <span className="text-sm font-medium text-green-600">+8.4%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Year to Date:</span>
-                    <span className="text-sm font-medium text-green-600">
-                      {asset.performance?.yearChange ? formatPercent(asset.performance.yearChange) : '+15.2%'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Risk Metrics */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Risk Metrics</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Volatility:</span>
-                    <span className="text-sm font-medium">24.1%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Sharpe Ratio:</span>
-                    <span className="text-sm font-medium">1.2</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Beta:</span>
-                    <span className="text-sm font-medium">1.1</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'REPORTING':
-        return (
-          <div className="grid grid-cols-2 gap-6">
-            {/* Left Column - Tax Information */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Tax Information</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Taxable Gain:</span>
-                    <span className="text-sm font-medium text-green-600">$2,546.00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Holding Period:</span>
-                    <span className="text-sm font-medium">Long-term</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Tax Rate:</span>
-                    <span className="text-sm font-medium">15%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Tax Calculations */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Tax Calculations</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Estimated Tax:</span>
-                    <span className="text-sm font-medium">$381.90</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">After Tax Value:</span>
-                    <span className="text-sm font-medium">
-                      <CurrencyFormattedValue 
-                        amount={asset.currentValue - 381.90} 
-                        fromCurrency={asset.currency}
-                        className="text-sm font-medium"
-                      />
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Tax Efficiency:</span>
-                    <span className="text-sm font-medium text-green-600">85%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'ASSORTED':
-        return (
-          <div className="grid grid-cols-2 gap-6">
-            {/* Left Column - Company Information */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Company Information</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Sector:</span>
-                    <span className="text-sm font-medium">Technology</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Market Cap:</span>
-                    <span className="text-sm font-medium">$4.1T</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Industry:</span>
-                    <span className="text-sm font-medium">Software</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Financial Metrics */}
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Financial Metrics</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">P/E Ratio:</span>
-                    <span className="text-sm font-medium">28.5</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Dividend Yield:</span>
-                    <span className="text-sm font-medium">0.4%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">52W High:</span>
-                    <span className="text-sm font-medium">$420.82</span>
-                  </div>
-                </div>
-              </div>
+            {/* Add Transaction Button */}
+            <div className="bg-white p-4 shadow-sm">
+              <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                Add New Transaction
+              </button>
             </div>
           </div>
         );
@@ -727,7 +575,7 @@ export default function AssetDetailPage() {
     );
   }
 
-  const tabs: TabType[] = ['MY POSITION', 'VALUE', 'RETURNS', 'REPORTING', 'ASSORTED', 'NOTES', 'DOCUMENTS'];
+  const tabs: TabType[] = ['MY POSITION', 'TRANSACTIONS', 'NOTES', 'DOCUMENTS'];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
