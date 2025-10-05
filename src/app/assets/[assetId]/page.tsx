@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Asset } from '@/lib/firebase/types';
 import CurrencyFormattedValue from '@/components/CurrencyFormattedValue';
 import { useAuthNew } from '@/lib/contexts/AuthContext';
 import { useCurrency } from '@/lib/contexts/CurrencyContext';
-import { getAsset } from '@/lib/firebase/firebaseUtils';
+import { getAsset, updateAsset } from '@/lib/firebase/firebaseUtils';
 import { convertCurrency } from '@/lib/currency';
+import TradingViewWidget from '@/components/TradingViewWidget';
 
-type TabType = 'MY POSITION' | 'TRANSACTIONS' | 'NOTES' | 'DOCUMENTS';
+type TabType = 'MY POSITION' | 'PERFORMANCE' | 'TRANSACTIONS' | 'STOCK DATA' | 'NOTES' | 'DOCUMENTS';
 
 export default function AssetDetailPage() {
   const router = useRouter();
@@ -32,6 +33,15 @@ export default function AssetDetailPage() {
     fromCurrency: string;
     toCurrency: string;
   } | null>(null);
+  const [quantityInput, setQuantityInput] = useState('');
+  const [isUpdatingQuantity, setIsUpdatingQuantity] = useState(false);
+  const [isUpdatingCostBasis, setIsUpdatingCostBasis] = useState(false);
+  const [updateError, setUpdateError] = useState<string>('');
+  const [convertedAvgCost, setConvertedAvgCost] = useState<number>(0);
+  const [isConvertingAvgCost, setIsConvertingAvgCost] = useState(false);
+  
+  // Cache for currency conversions to avoid redundant API calls
+  const conversionCache = useMemo(() => new Map<string, number>(), []);
 
   // Get assetId from URL params
   const assetId = params.assetId as string;
@@ -56,6 +66,57 @@ export default function AssetDetailPage() {
       setPreferredCurrency(contextPreferredCurrency);
     }
   }, [contextPreferredCurrency, preferredCurrency]);
+
+  // Initialize inputs when asset loads
+  useEffect(() => {
+    if (asset) {
+      setQuantityInput(asset.quantity?.toString() || '');
+    }
+  }, [asset]);
+
+  // Optimized currency conversion with caching
+  const convertAvgCost = useCallback(async () => {
+    if (!asset?.avgCost || !asset?.currency || !preferredCurrency) {
+      setConvertedAvgCost(0);
+      return;
+    }
+
+    // If the asset currency is the same as preferred currency, no conversion needed
+    if (asset.currency === preferredCurrency) {
+      setConvertedAvgCost(asset.avgCost);
+      return;
+    }
+
+    // Check cache first
+    const cacheKey = `${asset.currency}-${preferredCurrency}-${asset.avgCost}`;
+    const cachedValue = conversionCache.get(cacheKey);
+    if (cachedValue !== undefined) {
+      setConvertedAvgCost(cachedValue);
+      return;
+    }
+
+    // Convert to preferred currency
+    setIsConvertingAvgCost(true);
+    try {
+      const conversion = await convertCurrency(asset.currency, preferredCurrency, asset.avgCost);
+      const convertedAmount = conversion.convertedAmount || asset.avgCost;
+      
+      // Cache the result
+      conversionCache.set(cacheKey, convertedAmount);
+      setConvertedAvgCost(convertedAmount);
+    } catch (error) {
+      console.error('Average cost currency conversion failed:', error);
+      // Fallback to original value
+      setConvertedAvgCost(asset.avgCost);
+    } finally {
+      setIsConvertingAvgCost(false);
+    }
+  }, [asset, preferredCurrency, conversionCache]);
+
+  // Convert average cost when asset or preferred currency changes
+  useEffect(() => {
+    convertAvgCost();
+  }, [convertAvgCost]);
 
   // Initialize cost basis input when asset loads
   useEffect(() => {
@@ -135,9 +196,68 @@ export default function AssetDetailPage() {
     return symbols[currency] || currency;
   };
 
-  const handleCostBasisChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleQuantityInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuantityInput(e.target.value);
+    setUpdateError(''); // Clear any previous errors
+  }, []);
+
+  const handleQuantitySave = useCallback(async () => {
+    const newQuantity = parseFloat(quantityInput);
+    
+    if (!asset || !user?.uid || isNaN(newQuantity) || newQuantity < 0) {
+      // Revert to original value if invalid
+      setQuantityInput(asset?.quantity?.toString() || '');
+      return;
+    }
+
+    setIsUpdatingQuantity(true);
+    setUpdateError('');
+
+    try {
+      // Calculate new current value based on current price and new quantity
+      const newCurrentValue = asset.currentPrice ? newQuantity * asset.currentPrice : asset.currentValue;
+      
+      // Calculate new average cost based on cost basis and new quantity
+      const newAvgCost = asset.costBasis && newQuantity > 0 ? asset.costBasis / newQuantity : 0;
+      
+      // Update the asset with new quantity, current value, and average cost
+      const result = await updateAsset(user.uid, assetId, {
+        quantity: newQuantity,
+        currentValue: newCurrentValue,
+        avgCost: newAvgCost
+      });
+
+      if (result.success && result.data) {
+        setAsset(result.data);
+      } else {
+        setUpdateError(result.error || 'Failed to update quantity');
+        // Revert the input
+        setQuantityInput(asset.quantity?.toString() || '');
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      setUpdateError('Failed to update quantity');
+      // Revert the input
+      setQuantityInput(asset.quantity?.toString() || '');
+    } finally {
+      setIsUpdatingQuantity(false);
+    }
+  }, [quantityInput, asset, user?.uid, assetId]);
+
+  const handleQuantityKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleQuantitySave();
+    }
+  }, [handleQuantitySave]);
+
+  const handleQuantityBlur = useCallback(() => {
+    handleQuantitySave();
+  }, [handleQuantitySave]);
+
+  const handleCostBasisInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let input = e.target.value;
     setConversionError('');
+    setUpdateError(''); // Clear any previous errors
 
     if (!input.trim()) {
       setCostBasisInput('');
@@ -171,16 +291,60 @@ export default function AssetDetailPage() {
 
     // Convert to preferred currency
     setIsConverting(true);
-    try {
-      const conversion = await convertCurrency(detected.currency, preferredCurrency, detected.amount);
-      setConvertedValue(conversion.convertedAmount || detected.amount);
-    } catch (error) {
-      console.error('Currency conversion failed:', error);
-      setConversionError('Currency conversion failed. Using original amount.');
-      setConvertedValue(detected.amount);
-    } finally {
-      setIsConverting(false);
+    convertCurrency(detected.currency, preferredCurrency, detected.amount)
+      .then(conversion => {
+        setConvertedValue(conversion.convertedAmount || detected.amount);
+      })
+      .catch(error => {
+        console.error('Currency conversion failed:', error);
+        setConversionError('Currency conversion failed. Using original amount.');
+        setConvertedValue(detected.amount);
+      })
+      .finally(() => {
+        setIsConverting(false);
+      });
+  };
+
+  const handleCostBasisSave = async () => {
+    if (!asset || !user?.uid || !detectedCurrency || convertedValue <= 0) {
+      return;
     }
+
+    setIsUpdatingCostBasis(true);
+    setUpdateError('');
+
+    try {
+      // Calculate new average cost based on cost basis and quantity
+      const newAvgCost = asset.quantity > 0 ? convertedValue / asset.quantity : 0;
+      
+      // Update the asset with new cost basis and average cost
+      const result = await updateAsset(user.uid, assetId, {
+        costBasis: convertedValue,
+        avgCost: newAvgCost,
+        currency: preferredCurrency
+      });
+
+      if (result.success && result.data) {
+        setAsset(result.data);
+      } else {
+        setUpdateError(result.error || 'Failed to update cost basis');
+      }
+    } catch (error) {
+      console.error('Error updating cost basis:', error);
+      setUpdateError('Failed to update cost basis');
+    } finally {
+      setIsUpdatingCostBasis(false);
+    }
+  };
+
+  const handleCostBasisKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleCostBasisSave();
+    }
+  };
+
+  const handleCostBasisBlur = () => {
+    handleCostBasisSave();
   };
 
   // Fetch asset data from Firebase
@@ -214,10 +378,30 @@ export default function AssetDetailPage() {
     fetchAsset();
   }, [assetId, user?.uid]);
 
-  const formatPercent = (percent: number) => {
+  // Memoized calculations
+  const calculatedValues = useMemo(() => {
+    if (!asset) return null;
+    
+    const currentValue = asset.currentValue || 0;
+    const costBasis = asset.costBasis || 0;
+    const quantity = asset.quantity || 0;
+    const avgCost = asset.avgCost || 0;
+    
+    return {
+      currentValue,
+      costBasis,
+      quantity,
+      avgCost,
+      gainLoss: currentValue - costBasis,
+      irr: costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0
+    };
+  }, [asset]);
+
+  const formatPercent = useCallback((percent: number) => {
     const sign = percent >= 0 ? '+' : '';
     return `${sign}${percent.toFixed(1)}%`;
-  };
+  }, []);
+
 
   const getPerformanceIcon = (change: number) => {
     if (change > 0) {
@@ -249,12 +433,28 @@ export default function AssetDetailPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (Total Shares)</label>
-                <input
-                  type="number"
-                  defaultValue={asset.quantity?.toString() || ""}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter quantity"
-                />
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={quantityInput}
+                    onChange={handleQuantityInputChange}
+                    onKeyPress={handleQuantityKeyPress}
+                    onBlur={handleQuantityBlur}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      updateError ? 'border-red-300 focus:ring-red-500' : ''
+                    }`}
+                    placeholder="Enter quantity"
+                    disabled={isUpdatingQuantity}
+                  />
+                  {isUpdatingQuantity && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    </div>
+                  )}
+                </div>
+                {updateError && (
+                  <p className="mt-1 text-sm text-red-600">{updateError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cost Basis</label>
@@ -264,21 +464,24 @@ export default function AssetDetailPage() {
                       <input
                         type="text"
                         value={costBasisInput}
-                        onChange={handleCostBasisChange}
+                        onChange={handleCostBasisInputChange}
+                        onKeyPress={handleCostBasisKeyPress}
+                        onBlur={handleCostBasisBlur}
                         className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          conversionError ? 'border-red-300 focus:ring-red-500' : ''
+                          conversionError || updateError ? 'border-red-300 focus:ring-red-500' : ''
                         }`}
                         placeholder="Enter total cost basis (e.g., USD 1000, INR 1000, EUR 1000)"
+                        disabled={isUpdatingCostBasis}
                       />
-                      {isConverting && (
+                      {(isConverting || isUpdatingCostBasis) && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                         </div>
                       )}
                     </div>
                     
-                    {conversionError && (
-                      <p className="mt-1 text-sm text-red-600">{conversionError}</p>
+                    {(conversionError || updateError) && (
+                      <p className="mt-1 text-sm text-red-600">{conversionError || updateError}</p>
                     )}
 
                     {detectedCurrency && detectedCurrency !== preferredCurrency && convertedValue > 0 && (
@@ -318,15 +521,18 @@ export default function AssetDetailPage() {
                 </div>
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Average Cost</label>
-                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                  <div className="relative w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
                     {asset.avgCost !== undefined && asset.avgCost > 0 ? (
-                      <CurrencyFormattedValue 
-                        amount={asset.avgCost} 
-                        fromCurrency={asset.currency}
-                        className="text-sm font-medium"
-                      />
+                      <span className="text-sm font-medium">
+                        {preferredCurrency} {convertedAvgCost.toFixed(2)}
+                      </span>
                     ) : (
                       <span className="text-sm text-gray-500">Not available</span>
+                    )}
+                    {isConvertingAvgCost && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -335,6 +541,157 @@ export default function AssetDetailPage() {
           </div>
         </div>
       );
+
+      case 'PERFORMANCE':
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column - Performance Metrics */}
+            <div className="space-y-4">
+              <div className="bg-white p-4 shadow-sm">
+                <h4 className="font-medium text-gray-900 mb-3">Return Metrics</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Total Return:</span>
+                    <span className={`text-sm font-medium ${
+                      (calculatedValues?.irr || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {calculatedValues?.irr ? formatPercent(calculatedValues.irr) : '--'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Total Gain/Loss:</span>
+                    <span className={`text-sm font-medium ${
+                      (calculatedValues?.gainLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      <CurrencyFormattedValue 
+                        amount={calculatedValues?.gainLoss || 0} 
+                        fromCurrency={asset.currency}
+                        className="text-sm font-medium"
+                      />
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Current Value:</span>
+                    <CurrencyFormattedValue 
+                      amount={calculatedValues?.currentValue || 0} 
+                      fromCurrency={asset.currency}
+                      className="text-sm font-medium"
+                    />
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Cost Basis:</span>
+                    <CurrencyFormattedValue 
+                      amount={calculatedValues?.costBasis || 0} 
+                      fromCurrency={asset.currency}
+                      className="text-sm font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 shadow-sm">
+                <h4 className="font-medium text-gray-900 mb-3">Price Performance</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Current Price:</span>
+                    <span className="text-sm font-medium">
+                      {asset.currentPrice ? `${asset.currency} ${asset.currentPrice.toFixed(2)}` : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Average Cost:</span>
+                    <span className="text-sm font-medium">
+                      {preferredCurrency} {convertedAvgCost.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Quantity:</span>
+                    <span className="text-sm font-medium">
+                      {calculatedValues?.quantity?.toLocaleString() || '0'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Price vs Avg Cost:</span>
+                    <span className={`text-sm font-medium ${
+                      (asset.currentPrice || 0) >= convertedAvgCost ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {asset.currentPrice && convertedAvgCost > 0 
+                        ? formatPercent(((asset.currentPrice - convertedAvgCost) / convertedAvgCost) * 100)
+                        : '--'
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Market Performance */}
+            <div className="space-y-4">
+              <div className="bg-white p-4 shadow-sm">
+                <h4 className="font-medium text-gray-900 mb-3">Market Performance</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Day Change:</span>
+                    <div className="flex items-center space-x-1">
+                      {getPerformanceIcon(asset.performance?.dayChange || 0)}
+                      <span className={`text-sm font-medium ${
+                        (asset.performance?.dayChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {asset.performance?.dayChange ? formatPercent(asset.performance.dayChange) : '--'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Week Change:</span>
+                    <span className={`text-sm font-medium ${
+                      (asset.performance?.weekChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {asset.performance?.weekChange ? formatPercent(asset.performance.weekChange) : '--'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Month Change:</span>
+                    <span className={`text-sm font-medium ${
+                      (asset.performance?.monthChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {asset.performance?.monthChange ? formatPercent(asset.performance.monthChange) : '--'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Year Change:</span>
+                    <span className={`text-sm font-medium ${
+                      (asset.performance?.yearChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {asset.performance?.yearChange ? formatPercent(asset.performance.yearChange) : '--'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 shadow-sm">
+                <h4 className="font-medium text-gray-900 mb-3">Risk Metrics</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Volatility:</span>
+                    <span className="text-sm font-medium">24.1%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Sharpe Ratio:</span>
+                    <span className="text-sm font-medium">1.2</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Beta:</span>
+                    <span className="text-sm font-medium">1.1</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Max Drawdown:</span>
+                    <span className="text-sm font-medium text-red-600">-15.2%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
 
       case 'TRANSACTIONS':
         return (
@@ -410,6 +767,79 @@ export default function AssetDetailPage() {
               <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
                 Add New Transaction
               </button>
+            </div>
+          </div>
+        );
+
+      case 'STOCK DATA':
+        return (
+          <div className="grid grid-cols-1 gap-6">
+            {/* Stock Information */}
+            <div className="bg-white p-4 shadow-sm">
+              <h4 className="font-medium text-gray-900 mb-3">Stock Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Symbol</label>
+                  <p className="text-sm text-gray-900">{asset.symbol}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Exchange</label>
+                  <p className="text-sm text-gray-900">{asset.exchange || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Price</label>
+                  <p className="text-sm text-gray-900">
+                    {asset.currency} {asset.currentPrice?.toFixed(2) || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Market Cap</label>
+                  <p className="text-sm text-gray-900">N/A</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Volume</label>
+                  <p className="text-sm text-gray-900">N/A</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">52-Week High</label>
+                  <p className="text-sm text-gray-900">N/A</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">52-Week Low</label>
+                  <p className="text-sm text-gray-900">N/A</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">P/E Ratio</label>
+                  <p className="text-sm text-gray-900">N/A</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Price History Chart */}
+            <div className="bg-white p-4 shadow-sm">
+              <h4 className="font-medium text-gray-900 mb-3">Price History</h4>
+              <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+                <p className="text-gray-500">Price chart will be displayed here</p>
+              </div>
+            </div>
+
+            {/* Key Metrics */}
+            <div className="bg-white p-4 shadow-sm">
+              <h4 className="font-medium text-gray-900 mb-3">Key Metrics</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-900">N/A</p>
+                  <p className="text-sm text-gray-600">Beta</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-900">N/A</p>
+                  <p className="text-sm text-gray-600">Dividend Yield</p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-900">N/A</p>
+                  <p className="text-sm text-gray-600">EPS</p>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -575,7 +1005,7 @@ export default function AssetDetailPage() {
     );
   }
 
-  const tabs: TabType[] = ['MY POSITION', 'TRANSACTIONS', 'NOTES', 'DOCUMENTS'];
+  const tabs: TabType[] = ['MY POSITION', 'PERFORMANCE', 'TRANSACTIONS', 'STOCK DATA', 'NOTES', 'DOCUMENTS'];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
@@ -644,29 +1074,13 @@ export default function AssetDetailPage() {
 
       {/* Right Sidebar - Stock Information */}
       <div className="w-full lg:w-80 space-y-6">
-        {activeTab === 'MY POSITION' && (
-          <div className="bg-white p-4 shadow-sm">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="font-semibold text-gray-900">{asset.symbol || 'N/A'}</h3>
-                <p className="text-sm text-gray-600">{asset.name}</p>
-                <p className="text-xs text-gray-500">{asset.exchange || 'NASDAQ'}</p>
-              </div>
-              <div className="text-right">
-                <div className="text-lg font-semibold text-gray-900">
-                  {asset.currentPrice ? `${asset.currency} ${asset.currentPrice.toFixed(2)}` : 'N/A'}
-                </div>
-                <div className="flex items-center justify-end space-x-1 mt-1">
-                  {getPerformanceIcon(asset.performance?.dayChange || 0)}
-                  <span className={`text-sm font-medium ${
-                    (asset.performance?.dayChange || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {asset.performance?.dayChange ? formatPercent(asset.performance.dayChange) : '--'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* TradingView Widget - Common for all tabs */}
+        {asset.symbol && (
+          <TradingViewWidget 
+            symbol={asset.symbol}
+            exchange={asset.exchange || 'NASDAQ'}
+            name={asset.name}
+          />
         )}
       </div>
     </div>

@@ -1,0 +1,192 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to check if user is demo user
+    function isDemoUser() {
+      return isAuthenticated() && request.auth.uid == 'demo-user-wealthwatch';
+    }
+    
+    // Helper function to check if this is a demo user document
+    function isDemoUserDocument(userId) {
+      return userId == 'demo-user-wealthwatch';
+    }
+    
+    // Helper function to validate required fields for assets
+    function isValidAsset(data) {
+      return data.keys().hasAll(['name', 'type', 'currentValue']) &&
+             data.name is string &&
+             data.type is string &&
+             data.currentValue is number &&
+             data.currentValue >= 0;
+    }
+    
+    // Helper function to validate required fields for accounts
+    function isValidAccount(data) {
+      return data.keys().hasAll(['name', 'type', 'currentValue']) &&
+             data.name is string &&
+             data.type is string &&
+             data.currentValue is number &&
+             data.currentValue >= 0;
+    }
+    
+    // Helper function to validate required fields for debts
+    function isValidDebt(data) {
+      return data.keys().hasAll(['name', 'type', 'currentValue']) &&
+             data.name is string &&
+             data.type is string &&
+             data.currentValue is number;
+    }
+    
+    // Helper function to validate required fields for goals
+    function isValidGoal(data) {
+      return data.keys().hasAll(['name', 'targetAmount', 'targetDate']) &&
+             data.name is string &&
+             data.targetAmount is number &&
+             data.targetAmount > 0 &&
+             data.targetDate is timestamp;
+    }
+    
+    // Helper function to validate user profile data
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['profile', 'preferences', 'settings']) &&
+             data.profile is map &&
+             data.preferences is map &&
+             data.settings is map;
+    }
+    
+    // Global tickers collection - read-only for all authenticated users and demo user
+    match /tickers/{tickerId} {
+      allow read: if isAuthenticated() || true; // Allow demo user to read tickers
+      allow write: if false; // Tickers are managed server-side only
+    }
+    
+    // User-specific collections
+    match /users/{userId} {
+      // User document - only the owner can read/write, or demo user access
+      allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+      
+      // User's assets subcollection
+      match /assets/{assetId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && isValidAsset(request.resource.data)) || 
+                     (isDemoUserDocument(userId) && isValidAsset(request.resource.data));
+        allow update: if (isOwner(userId) && isValidAsset(request.resource.data)) || 
+                     (isDemoUserDocument(userId) && isValidAsset(request.resource.data));
+      }
+      
+      // User's accounts subcollection
+      match /accounts/{accountId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && isValidAccount(request.resource.data)) || 
+                     (isDemoUserDocument(userId) && isValidAccount(request.resource.data));
+        allow update: if (isOwner(userId) && isValidAccount(request.resource.data)) || 
+                     (isDemoUserDocument(userId) && isValidAccount(request.resource.data));
+      }
+      
+      // User's debts subcollection
+      match /debts/{debtId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && isValidDebt(request.resource.data)) || 
+                     (isDemoUserDocument(userId) && isValidDebt(request.resource.data));
+        allow update: if (isOwner(userId) && isValidDebt(request.resource.data)) || 
+                     (isDemoUserDocument(userId) && isValidDebt(request.resource.data));
+      }
+      
+      // User's goals subcollection
+      match /goals/{goalId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && isValidGoal(request.resource.data)) || 
+                     (isDemoUserDocument(userId) && isValidGoal(request.resource.data));
+        allow update: if (isOwner(userId) && isValidGoal(request.resource.data)) || 
+                     (isDemoUserDocument(userId) && isValidGoal(request.resource.data));
+      }
+      
+      // User's sections subcollection (for organizing assets)
+      match /sections/{sectionId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && 
+          request.resource.data.keys().hasAll(['name', 'type']) &&
+          request.resource.data.name is string &&
+          request.resource.data.type is string) || 
+          (isDemoUserDocument(userId) &&
+          request.resource.data.keys().hasAll(['name', 'type']) &&
+          request.resource.data.name is string &&
+          request.resource.data.type is string);
+      }
+      
+      // User's sheets subcollection (for organizing sections)
+      match /sheets/{sheetId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && 
+          request.resource.data.keys().hasAll(['name']) &&
+          request.resource.data.name is string) || 
+          (isDemoUserDocument(userId) &&
+          request.resource.data.keys().hasAll(['name']) &&
+          request.resource.data.name is string);
+      }
+      
+      // User's analytics subcollection
+      match /analytics/{analyticsId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && 
+          request.resource.data.keys().hasAll(['date', 'totalValue']) &&
+          request.resource.data.date is timestamp &&
+          request.resource.data.totalValue is number) || 
+          (isDemoUserDocument(userId) &&
+          request.resource.data.keys().hasAll(['date', 'totalValue']) &&
+          request.resource.data.date is timestamp &&
+          request.resource.data.totalValue is number);
+      }
+      
+      // User's historical data subcollection
+      match /history/{historyId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && 
+          request.resource.data.keys().hasAll(['date', 'value']) &&
+          request.resource.data.date is timestamp &&
+          request.resource.data.value is number) || 
+          (isDemoUserDocument(userId) &&
+          request.resource.data.keys().hasAll(['date', 'value']) &&
+          request.resource.data.date is timestamp &&
+          request.resource.data.value is number);
+      }
+      
+      // User's categories subcollection
+      match /categories/{categoryId} {
+        allow read, write: if isOwner(userId) || isDemoUserDocument(userId);
+        allow create: if (isOwner(userId) && 
+          request.resource.data.keys().hasAll(['name', 'type']) &&
+          request.resource.data.name is string &&
+          request.resource.data.type is string) || 
+          (isDemoUserDocument(userId) &&
+          request.resource.data.keys().hasAll(['name', 'type']) &&
+          request.resource.data.name is string &&
+          request.resource.data.type is string);
+      }
+    }
+    
+    // Demo user special access (if you want to allow demo user to access specific data)
+    // This is optional and can be removed if not needed
+    match /demo-data/{document=**} {
+      allow read: if isDemoUser();
+      allow write: if false; // Demo data is read-only
+    }
+    
+    // Default deny rule - anything not explicitly allowed above is denied
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
